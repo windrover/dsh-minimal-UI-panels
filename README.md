@@ -2,6 +2,14 @@
 
 > [English](./README.md) · [中文](./README.zh-CN.md)
 
+<p>
+  <a href="https://github.com/windrover/dsh-minimal-UI-panels"><img src="https://img.shields.io/badge/version-0.1.0-blue" alt="version"></a>
+  <a href="https://github.com/windrover/dsh-minimal-UI-panels/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="license"></a>
+  <a href="https://github.com/windrover/dsh-minimal-UI-panels"><img src="https://img.shields.io/badge/platform-DeepSeek%20Harness-9cf" alt="platform"></a>
+  <img src="https://img.shields.io/badge/status-active-brightgreen" alt="status">
+  <img src="https://img.shields.io/badge/panels-4-ff69b4" alt="panels">
+</p>
+
 > All-in-one DeepSeek Harness UI panels — one bundle, one loader row: a multi-panel right details column plus artifacts, long-term memory, terminal, and notes.
 
 `dsh-minimal-UI-panels` merges four formerly separate DSH plugins into a single package mounted as **one loader row**, so multiple plugins no longer fight over the `details` slot. It ships both host-side tools/routes and browser-side panel UI — plug and play.
@@ -15,6 +23,14 @@
 | **Long-term memory panel** | View/add/search/edit memory across three scopes (user/global/workspace); tag grouping; content highlighting; pairs with `memory_*` tools and the `/memory` command |
 | **Terminal panel** | A dark-themed bash command runner (`bash -lc`), output collected and returned; common-command hints stay pinned below |
 | **Notes panel** | Apple-Notes-style multi-note scratchpad: sidebar list + editor, create/delete, autosave (600 ms debounce), auto-title from the first line, stored at `~/.dsh/notes.json` |
+
+## 📸 Screenshots
+
+The right details column, collapsed to its chip strip (Artifacts / Long-term memory / Terminal / Notes):
+
+| Panel strip | Full view |
+|---|---|
+| <img src="docs/strip.png" alt="panel strip" width="90"> | <img src="docs/overview.png" alt="full view" width="420"> |
 
 ## 🧩 Merge origins
 

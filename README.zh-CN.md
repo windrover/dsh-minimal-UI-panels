@@ -2,6 +2,14 @@
 
 > [English](./README.md) · [中文](./README.zh-CN.md)
 
+<p>
+  <a href="https://github.com/windrover/dsh-minimal-UI-panels"><img src="https://img.shields.io/badge/version-0.1.0-blue" alt="version"></a>
+  <a href="https://github.com/windrover/dsh-minimal-UI-panels/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="license"></a>
+  <a href="https://github.com/windrover/dsh-minimal-UI-panels"><img src="https://img.shields.io/badge/platform-DeepSeek%20Harness-9cf" alt="platform"></a>
+  <img src="https://img.shields.io/badge/status-active-brightgreen" alt="status">
+  <img src="https://img.shields.io/badge/panels-4-ff69b4" alt="panels">
+</p>
+
 > All-in-one DeepSeek Harness UI panels — 一个 bundle、一个 loader 行，包含右侧多面板详情栏 + 产物 + 长期记忆 + 终端 + 记事本。
 
 `dsh-minimal-UI-panels` 把四个原本独立的 DSH 插件合并为一个包，并以**单 loader 行**挂载，避免多个插件互相抢占 `details` 槽。它同时提供宿主侧工具/路由与浏览器侧面板 UI，即插即用。
@@ -15,6 +23,14 @@
 | **长期记忆面板** | 三作用域（user/global/workspace）记忆的查看、新增、搜索、编辑；标签分组；内容高亮；配套 `memory_*` 工具与 `/memory` 命令 |
 | **终端面板** | 深色终端外观的 bash 命令执行器（`bash -lc`），输出收集后返回，下方常驻常用命令提示 |
 | **记事本面板** | Apple 便签风格多条目记事：侧边列表 + 正文编辑、新建/删除、自动保存（600ms 防抖）、按首行自动命名，存储于 `~/.dsh/notes.json` |
+
+## 📸 截图
+
+右侧详情栏折叠为面板条（产物 / 长期记忆 / 终端 / 记事本）：
+
+| 面板条 | 整体视图 |
+|---|---|
+| <img src="docs/strip.png" alt="面板条" width="90"> | <img src="docs/overview.png" alt="整体视图" width="420"> |
 
 ## 🧩 合并来源
 
