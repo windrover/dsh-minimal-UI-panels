@@ -66,8 +66,42 @@ cd ~/.dsh/profiles/web && pnpm install
 
 ## 🏗 架构
 
-- **宿主半身** `lib/index.js` — 薄组合入口：仅 `import { apply as applyX } from './host/x.js'` 并按序调用，`inject` 为各逻辑所需服务的并集（`tools, systemPrompt, commands, settings, agents, webServer, workspaceRegistry, subprocess, fs`）。各宿主逻辑从原插件**逐字拷贝**（`lib/host/{ltm,artifacts,terminal-notes}.js` + `store/threats/llm/automation` 辅助文件），保证内部 API 精确无损。
-- **浏览器半身** `lib/client.js` — 把各原插件的 `__ModuleLoader__.load` factory 体封装为独立作用域函数（`detailsTabs` / `artifacts` / `ltm` / `terminalNotes`），接收共享的 `react`、`react_jsx_runtime`，末尾 `return { apply, inject }`；主 `apply` 按序调用（容器先挂载，子面板再注册进 `details.tabs.item`）。
+```
+dsh-minimal-UI-panels  (一个 loader 行 / 一个包)
+│
+├── lib/index.js  ── 宿主半身【薄组合入口】
+│   └── import + 按序调用:
+│       ├── lib/host/ltm.js              ← 原 dsh-long-term-memory（一字不改）
+│       │     └── store.js / threats.js / llm.js / automation.js
+│       ├── lib/host/artifacts.js        ← 原 dsh-artifacts-panel（一字不改）
+│       └── lib/host/terminal-notes.js   ← 原 dsh-terminal-notes（一字不改）
+│       inject = tools, systemPrompt, commands, settings, agents,
+│                webServer, workspaceRegistry, subprocess, fs
+│
+└── lib/client.js  ── 浏览器半身【合并单 bundle = scripts/merge-client.mjs 生成】
+    ├── function detailsTabs(react, react_jsx_runtime)   ← 原 dsh-details-tabs factory 体
+    ├── function artifacts(react, react_jsx_runtime)     ← 原 dsh-artifacts-panel factory 体
+    ├── function ltm(react, react_jsx_runtime)           ← 原 dsh-long-term-memory factory 体
+    └── function terminalNotes(react, react_jsx_runtime) ← 原 dsh-terminal-notes factory 体
+        每个 fn 末尾 return { apply, inject }
+    └── function apply(ctx)   ← 主入口，依次调用 4 个 fn 的 apply
+        顺序: container(details) → artifacts → ltm → terminalNotes
+        (容器先挂载，子面板再注册进 details.tabs.item)
+
+面板条 (details 栏): [产物] [长期记忆] [终端] [记事本]
+宿主工具/路由:        memory_*(9) + artifacts_list, /api/artifacts/*, /api/terminal-notes/*
+```
+
+合并流程（详见 `scripts/merge-client.mjs`）：
+
+```
+dsh-details-tabs/lib/client.js  ─┐
+dsh-artifacts-panel/lib/client.js├─ 提取 factory 体 → 改写 react/react_jsx_runtime
+dsh-long-term-memory/lib/client.js│   绑定、删除子模块内 exports. 语句
+dsh-terminal-notes/lib/client.js ─┘        │
+                                           ▼
+                            lib/client.js  (单 __ModuleLoader__.load bundle)
+```
 
 > ⚠️ **关键约定**：`__ModuleLoader__.load` 的 `id` 必须**精确等于包目录名**（本包为 `dsh-minimal-UI-panels`，含大写 UI）。loader 以目录 basename 作为 entry id，与 npm 包名大小写可能不同；不一致会导致启动报 `loaded without registering "..." via __ModuleLoader__.load`（fail-loud）。
 
@@ -95,7 +129,13 @@ cd ~/.dsh/profiles/web && pnpm install
 
   预检会做：宿主插件树加载（`--dump-config`）+ 各插件 `node --check` + 客户端 bundle mock 装载契约断言。**通过后才允许重启**；进不去时用 `~/.dsh/dsh-safe-start.sh` 安全启动。
 
-- 合并浏览器半身由脚本生成：`/tmp/merge-client.mjs`（读取四个原始 `lib/client.js`，提取 factory 体、改写 react 绑定、删除子模块内 `exports.` 语句，输出单 bundle）。重新生成后务必核对：`react_jsx_runtime` 有定义、子模块无残留 `exports.`、`__ModuleLoader__.load` id 与目录名一致。
+- 浏览器半身由仓库内脚本生成（收录自 `/tmp/merge-client.mjs`，已相对路径化）：
+
+  ```bash
+  node scripts/merge-client.mjs
+  ```
+
+  它会读取四个原始插件（作为本仓库的**兄弟目录** `../dsh-{details-tabs,artifacts-panel,long-term-memory,terminal-notes}/lib/client.js`），提取 factory 体、改写 react/`react_jsx_runtime` 绑定、删除子模块内 `exports.` 语句，输出 `lib/client.js`。重新生成后务必核对：`react_jsx_runtime` 有定义、子模块无残留 `exports.`、`__ModuleLoader__.load` 的 id 与目录名一致。
 
 - 数据位置：长期记忆 `~/.dsh/dsh-memory/{global,user}.jsonl`、工作区 `.dsh/memory.jsonl`；记事本 `~/.dsh/notes.json`。
 
