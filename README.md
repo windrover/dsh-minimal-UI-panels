@@ -32,12 +32,25 @@ The right details column with all four panels open (Artifacts / Long-term memory
 
 ## 📦 Install
 
-Mounted as a local link dependency (consistent with other DSH local plugins). Edit `~/.dsh/profiles/web/package.json`:
+This plugin mounts as a **local link dependency** (consistent with other DSH local plugins).
+
+### 1. Clone the repo
+
+Pick a directory and clone it:
+
+```bash
+git clone https://github.com/windrover/dsh-minimal-UI-panels.git
+# → <your-path>/dsh-minimal-UI-panels
+```
+
+### 2. Register it in your DSH profile
+
+Edit `~/.dsh/profiles/web/package.json`. Set `link:` to **your clone path** (`<your-path>` is wherever you ran the clone):
 
 ```jsonc
 {
   "dependencies": {
-    "dsh-minimal-ui-panels": "link:/Users/Haoguangxing/Documents/DSH/dsh-minimal-UI-panels"
+    "dsh-minimal-ui-panels": "link:<your-path>/dsh-minimal-UI-panels"
   },
   "dsh": {
     "profile": {
@@ -51,13 +64,17 @@ Mounted as a local link dependency (consistent with other DSH local plugins). Ed
 }
 ```
 
-Then run pnpm once in the profile dir to establish the link:
+> Replace `<your-path>` with the absolute path to the cloned folder, e.g. `link:/Users/me/dev/dsh-minimal-UI-panels`.
+
+### 3. Establish the link
 
 ```bash
 cd ~/.dsh/profiles/web && pnpm install
 ```
 
-Finally restart dsh web: **Ctrl+C to quit → run `dsh web` again → refresh the browser**. The loader scans profile bundles at startup, so the new code takes effect.
+### 4. Restart dsh web
+
+**Ctrl+C to quit → run `dsh web` again → refresh the browser**. The loader scans profile bundles at startup, so the new code takes effect.
 
 > If you previously mounted the old plugins, remove them from `dsh.profile.bundles` (this package supersedes them); also clean any stale rows in `~/.dsh/cordis.patch.yml` (e.g. `- id: artifacts-panel`) to avoid `patch: entry ... not found` warnings.
 

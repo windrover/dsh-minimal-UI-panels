@@ -32,12 +32,25 @@
 
 ## 📦 安装
 
-本包以本地 link 依赖挂载（与 DSH 本地插件一致）。编辑 `~/.dsh/profiles/web/package.json`：
+本插件以**本地 link 依赖**挂载（与 DSH 本地插件一致）。
+
+### 1. 克隆仓库
+
+选一个目录并克隆：
+
+```bash
+git clone https://github.com/windrover/dsh-minimal-UI-panels.git
+# → <你的路径>/dsh-minimal-UI-panels
+```
+
+### 2. 在 DSH profile 中登记
+
+编辑 `~/.dsh/profiles/web/package.json`，把 `link:` 改成**你自己的克隆路径**（`<你的路径>` 是你克隆到的目录）：
 
 ```jsonc
 {
   "dependencies": {
-    "dsh-minimal-ui-panels": "link:/Users/Haoguangxing/Documents/DSH/dsh-minimal-UI-panels"
+    "dsh-minimal-ui-panels": "link:<你的路径>/dsh-minimal-UI-panels"
   },
   "dsh": {
     "profile": {
@@ -51,13 +64,17 @@
 }
 ```
 
-然后在 profile 目录执行一次 pnpm 安装以建立 link：
+> 把 `<你的路径>` 换成克隆目录的绝对路径，例如 `link:/Users/me/dev/dsh-minimal-UI-panels`。
+
+### 3. 建立 link
 
 ```bash
 cd ~/.dsh/profiles/web && pnpm install
 ```
 
-最后重启 dsh web：**Ctrl+C 退出 → 重新 `dsh web` → 浏览器刷新**。loader 启动时扫描 profile bundles，新代码即生效。
+### 4. 重启 dsh web
+
+**Ctrl+C 退出 → 重新 `dsh web` → 浏览器刷新**。loader 启动时扫描 profile bundles，新代码即生效。
 
 > 若你之前挂载过那几个旧插件，请从 `dsh.profile.bundles` 列表移除它们（本包已取代）；同时清理 `~/.dsh/cordis.patch.yml` 中残留的旧行（如 `- id: artifacts-panel`），避免 `patch: entry ... not found` 告警。
 
