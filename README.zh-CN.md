@@ -32,17 +32,6 @@
 |---|---|
 | <img src="docs/strip.png" alt="面板条" width="90"> | <img src="docs/overview.png" alt="整体视图" width="420"> |
 
-## 🧩 合并来源
-
-| 原插件 | 贡献 |
-|---|---|
-| dsh-details-tabs | 多面板 details 容器（占据 `details` 槽，声明 `details.tabs.item` 子槽） |
-| dsh-artifacts-panel | 产物面板 + `artifacts_list` 工具 + `/api/artifacts/*` 路由 |
-| dsh-long-term-memory | 长期记忆面板 + `memory_*` 工具 + `/memory` 命令 + 每轮注入 + 设置卡片 |
-| dsh-terminal-notes | 终端 + 记事本面板 + `/api/terminal-notes/*` 路由 |
-
-> 原三个独立仓库（details-tabs / artifacts-panel / long-term-memory）已归档为只读（archived），功能全部并入本包。
-
 ## 📦 安装
 
 本包以本地 link 依赖挂载（与 DSH 本地插件一致）。编辑 `~/.dsh/profiles/web/package.json`：

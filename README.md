@@ -32,17 +32,6 @@ The right details column, collapsed to its chip strip (Artifacts / Long-term mem
 |---|---|
 | <img src="docs/strip.png" alt="panel strip" width="90"> | <img src="docs/overview.png" alt="full view" width="420"> |
 
-## 🧩 Merge origins
-
-| Original plugin | Contributes |
-|---|---|
-| dsh-details-tabs | Multi-panel details container (owns `details`, declares `details.tabs.item` child) |
-| dsh-artifacts-panel | Artifacts panel + `artifacts_list` tool + `/api/artifacts/*` routes |
-| dsh-long-term-memory | Memory panel + `memory_*` tools + `/memory` command + per-assembly injection + settings card |
-| dsh-terminal-notes | Terminal + notes panels + `/api/terminal-notes/*` routes |
-
-> The three original standalone repos (details-tabs / artifacts-panel / long-term-memory) are archived (read-only); their functionality is fully merged into this package.
-
 ## 📦 Install
 
 Mounted as a local link dependency (consistent with other DSH local plugins). Edit `~/.dsh/profiles/web/package.json`:
