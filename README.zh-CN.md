@@ -26,11 +26,9 @@
 
 ## 📸 截图
 
-右侧详情栏折叠为面板条（产物 / 长期记忆 / 终端 / 记事本）：
+右侧详情栏多面板效果（产物 / 长期记忆 / 记事本 / 终端）：
 
-| 面板条 | 整体视图 |
-|---|---|
-| <img src="docs/strip.png" alt="面板条" width="90"> | <img src="docs/overview.png" alt="整体视图" width="420"> |
+<img src="docs/screenshot.png" alt="面板效果" width="460">
 
 ## 📦 安装
 

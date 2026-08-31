@@ -26,11 +26,9 @@
 
 ## 📸 Screenshots
 
-The right details column, collapsed to its chip strip (Artifacts / Long-term memory / Terminal / Notes):
+The right details column with all four panels open (Artifacts / Long-term memory / Notes / Terminal):
 
-| Panel strip | Full view |
-|---|---|
-| <img src="docs/strip.png" alt="panel strip" width="90"> | <img src="docs/overview.png" alt="full view" width="420"> |
+<img src="docs/screenshot.png" alt="panels" width="460">
 
 ## 📦 Install
 
