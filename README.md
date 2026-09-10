@@ -3,24 +3,24 @@
 > [English](./README.md) · [中文](./README.zh-CN.md)
 
 <p>
-  <a href="https://github.com/windrover/dsh-minimal-UI-panels"><img src="https://img.shields.io/badge/version-0.2.0-blue" alt="version"></a>
+  <a href="https://github.com/windrover/dsh-minimal-UI-panels"><img src="https://img.shields.io/badge/version-0.3.0-blue" alt="version"></a>
   <a href="https://github.com/windrover/dsh-minimal-UI-panels/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="license"></a>
   <a href="https://github.com/windrover/dsh-minimal-UI-panels"><img src="https://img.shields.io/badge/platform-DeepSeek%20Harness-9cf" alt="platform"></a>
   <img src="https://img.shields.io/badge/status-active-brightgreen" alt="status">
   <img src="https://img.shields.io/badge/panels-4-ff69b4" alt="panels">
 </p>
 
-> All-in-one DeepSeek Harness UI panels — one bundle, one loader row: artifacts, long-term memory, terminal, and notes as right-Sidebar tab types.
+> All-in-one DeepSeek Harness UI panels — one bundle, one loader row: artifacts, long-term memory, terminal and notes **paired two per tab** into right-Sidebar tab types, each with a draggable split inside.
 
-`dsh-minimal-UI-panels` merges three formerly separate DSH plugins into a single package mounted as **one loader row**. Each panel registers as a **tab type** (`ctx.sidebarRightTabs`) on `@deepseek-ai/dsh-client-ui-sidebar-right` and opens as a tab in the right Sidebar. It also ships the host-side tools/routes — plug and play.
+`dsh-minimal-UI-panels` merges three formerly separate DSH plugins into a single package mounted as **one loader row**. The panels are **paired** into right-Sidebar **tab types** (`ctx.sidebarRightTabs`) on `@deepseek-ai/dsh-client-ui-sidebar-right` — `Artifacts + Terminal` and `Memory + Notes` — and each tab stacks its two panels with a draggable divider, so two Sidebar panes side by side show **all four panels at once**. It also ships the host-side tools/routes — plug and play.
 
-> **DSH 0.1.5 changed the architecture**: the third-party-occupiable `details` column is gone, replaced by `rightbar` and owned by the shipped right Sidebar (docking kit + tab-type registry). This package's 0.2.0 release completes that migration — there is no self-drawn multi-panel container any more.
+> **DSH 0.1.5 changed the architecture**: the third-party-occupiable `details` column is gone, replaced by `rightbar` and owned by the shipped right Sidebar (docking kit + tab-type registry). 0.2.0 completed that migration; 0.3.0 then paired the panels, because one tab per panel could only ever show two of them.
 
 ## ✨ Features
 
 | Panel / capability | Description |
 |---|---|
-| **Right-Sidebar tab types** | Every panel registers as a tab type: docking, floating, splitting, drag-reordering and strip-close all come from the shipped docking kit. The way in is the strip's add control → the guide page → a capsule, which calls `openTab(kind)` |
+| **Paired right-Sidebar tab types** | One tab type = **one pair of panels**, stacked vertically with a draggable divider between them (the split is remembered per pairing; double-click the divider for 50/50). Docking, floating and splitting come from the shipped docking kit, so **two panes side by side show all four panels**. The way in is the strip's add control → the guide page |
 | **Artifacts panel** | Scans workspace artifact files, groups/sorts by type/date/size/line count; syntax-highlighted code/config/data previews; inline base64 image previews (4 MiB cap); mp4/m4v/webm/ogv video streaming (Range requests) |
 | **Long-term memory panel** | View/add/search/edit memory across three scopes (user/global/workspace); tag grouping; content highlighting; pairs with `memory_*` tools and the `/memory` command |
 | **Terminal panel** | A dark-themed bash command runner (`bash -lc`), output collected and returned; common-command hints stay pinned below |
@@ -30,7 +30,7 @@
 
 The four panels (Artifacts / Long-term memory / Notes / Terminal):
 
-> ⚠️ The shot below shows the 0.1.x self-drawn `details` container. From 0.2.0 the panels live in the shipped right Sidebar, so the strip, split and float controls look like DSH's own.
+> ⚠️ The shot below shows the 0.1.x self-drawn `details` container. From 0.2.0 the panels live in the shipped right Sidebar, and from 0.3.0 they are paired, so the strip, split and float controls look like DSH's own.
 
 <img src="docs/screenshot.png" alt="panels" width="460">
 
@@ -85,7 +85,8 @@ cd ~/.dsh/profiles/web && pnpm install
 
 ## 🖥 Usage
 
-- Open a session → the right Sidebar (the expand button in the conversation header) → the strip's add control → the **guide page** → pick **Artifacts / Long-term memory / Terminal / Notes**. Panels open as tabs and can be dragged, split, or floated.
+- Open a session → the right Sidebar (the expand button in the conversation header) → the strip's add control → the **guide page** → pick **Artifacts + Terminal** or **Memory + Notes**.
+- **All four at once**: drag a tab to the **left or right edge of a pane** to split off a second pane, then open one pairing in each; adjust the split inside a pairing with the divider between its halves (double-click it for 50/50). Widen the Sidebar when the columns feel tight.
 - **Terminal**: type a command and press Enter (`bash -lc`); output shows in the lower half; common-command hints stay pinned.
 - **Notes**: click **New** to create an entry; drag the sidebar divider to resize; clicking a title auto-hides the list to focus the editor; the toolbar toggle shows/hides the list manually.
 - **`/memory`** command (host side): `/memory list|search|get|forget|export`.
@@ -106,24 +107,25 @@ dsh-minimal-UI-panels  (one loader row / one package)
 │                webServer, workspaceRegistry, subprocess, fs
 │
 ├── src/           ── Browser-half SOURCE 【edit panel UI here; version-controlled】
-│   ├── artifacts/client.js          ← original dsh-artifacts-panel factory body
-│   ├── long-term-memory/client.js   ← original dsh-long-term-memory factory body
-│   └── terminal-notes/client.js     ← original dsh-terminal-notes factory body
+│   ├── composite/client.js          ← the pairing container: owns EVERY right-Sidebar registration
+│   ├── artifacts/client.js          ← artifacts panel (contributes a component; registers nothing)
+│   ├── long-term-memory/client.js   ← memory panel (same, plus the Settings card)
+│   └── terminal-notes/client.js     ← terminal + notes panels (same)
 │
 └── lib/client.js  ── Browser half 【single merged bundle = scripts/merge-client.mjs; do not edit】
-    ├── function artifacts(react, react_jsx_runtime)      ← extracted from src/artifacts/client.js
-    ├── function ltm(react, react_jsx_runtime)            ← extracted from src/long-term-memory/client.js
-    └── function terminalNotes(react, react_jsx_runtime)  ← extracted from src/terminal-notes/client.js
-        each fn returns { apply, inject }
-    └── function apply(ctx)   ← main entry, calls each fn's apply in order
+    ├── function artifacts(react, react_jsx_runtime, panels)      ← from src/artifacts/client.js
+    ├── function ltm(react, react_jsx_runtime, panels)            ← from src/long-term-memory/client.js
+    ├── function terminalNotes(react, react_jsx_runtime, panels)  ← from src/terminal-notes/client.js
+    ├── function composite(react, react_jsx_runtime, panels)      ← from src/composite/client.js
+    │     the three panel fragments only WRITE { Component, ns, titleKey, t } into `panels`;
+    │     composite READS it to render
+    └── function apply(ctx)   ← main entry: const panels = {} → apply in order (composite LAST)
         exports.inject = ["slots", "locale", "sidebarRightTabs"]
 
-Right-Sidebar tab types (each then registers a body under its own id in the
-sidebar.right.pane.tab seat):
-    dsh-minimal-ui-panels/artifacts          kind "artifacts"
-    dsh-minimal-ui-panels/long-term-memory   kind "long-term-memory"
-    dsh-minimal-ui-panels/terminal           kind "terminal"
-    dsh-minimal-ui-panels/notes              kind "notes"
+Right-Sidebar tab types (ONE PER PAIRING; each then registers a body under its own
+id in the sidebar.right.pane.tab seat):
+    dsh-minimal-ui-panels/artifacts-terminal  kind "artifacts-terminal"  top: artifacts  bottom: terminal
+    dsh-minimal-ui-panels/memory-notes        kind "memory-notes"        top: memory     bottom: notes
 
 Host tools/routes: memory_*(9) + artifacts_list, /api/artifacts/*, /api/terminal-notes/*
 ```
@@ -133,16 +135,17 @@ Merge pipeline (see `scripts/merge-client.mjs`):
 ```
 src/artifacts/client.js        ─┐
 src/long-term-memory/client.js ├─ extract factory body → rewrite react/react_jsx_runtime
-src/terminal-notes/client.js   ─┘   bindings, strip inner exports. statements
+src/terminal-notes/client.js   │   bindings, strip inner exports. statements
+src/composite/client.js        ─┘  (merged LAST: it reads the `panels` registry the others fill)
                                            │
                                            ▼
                             lib/client.js  (single __ModuleLoader__.load bundle)
 ```
 
-> 📌 **The sources live in this repo**, under `src/<panel>/client.js`. They used
-> to be read from sibling checkouts of the three original plugin repos — all of
-> which are now archived on GitHub (read-only, `git push` → 403), leaving the
-> source with no version control behind it. An edit made directly in the
+> 📌 **The sources live in this repo**, under `src/<fragment>/client.js`. They
+> used to be read from sibling checkouts of the three original plugin repos —
+> all of which are now archived on GitHub (read-only, `git push` → 403), leaving
+> the source with no version control behind it. An edit made directly in the
 > generated `lib/client.js` was destroyed by the next merge and could not be
 > recovered from git. Vendoring them here is what makes the browser half
 > reproducible from a clone.
@@ -157,9 +160,11 @@ src/terminal-notes/client.js   ─┘   bindings, strip inner exports. statement
 >
 > That was the last hidden bug in 0.1.x: `package.json` had already gone lowercase, but `cordis.patch.yml` and the client bundle still said `UI`. The directory's own casing is irrelevant; **`package.json`'s `name` is the source of truth**.
 
-### Why the multi-panel container is gone
+### Why the multi-panel container is gone — and why the panels are paired
 
 The old four plugins had to be merged because they all fought over the one `details` slot. After DSH 0.1.5 moved to `rightbar`, each panel registers **its own tab kind and body key**, so they no longer contend — the container role belongs to the shipped right Sidebar. This package therefore dropped `dsh-details-tabs` (~1100 lines) along with its self-drawn layout persistence and DockRail.
+
+But one tab per panel has a practical ceiling: the Sidebar splits into at most **two panes**, so at most two panels can be on screen, and reaching the others costs a switch. Since 0.3.0 the panels are **paired** — a tab stacks two panels with a draggable divider between them. Two panes side by side then show all four panels, and dragging a divider down to 15% gives the single-panel view back. The pairings live in the `PAIRS` array in `src/composite/client.js`; regrouping is a change to that one array.
 
 ## 🌐 Host routes
 
@@ -185,25 +190,25 @@ Unchanged from the originals:
 
   It runs: plugin-tree load (`--dump-config`) + `node --check` per plugin + client bundle mock-load contract assertions + this repo's unit tests. **Restart only after it passes**; if you're locked out, use `~/.dsh/dsh-safe-start.sh` for a safe boot.
 
-- This repo's contract test `test/client-contract.test.mjs` goes further than the precheck: it **actually runs `apply(ctx)`** against a stub context and pins the four tab types (id/kind/priority/guide entry), the four `sidebar.right.pane.tab` bodies, and the fact that a panel's ✕ closes its own tab:
+- This repo's contract test `test/client-contract.test.mjs` goes further than the precheck: it **actually runs `apply(ctx)`** against a stub context and pins the two composite tab types (id/kind/priority/guide entry), the two `sidebar.right.pane.tab` bodies, and then **renders each body** to check that both halves draw their own title, that both panels are seated with `embedded: true` and with their own translator, and that the draggable divider is there:
 
   ```bash
   node test/client-contract.test.mjs
   ```
 
-- The browser half is a **generated artifact**; its source is `src/`. Edit `src/<panel>/client.js`, then regenerate:
+- The browser half is a **generated artifact**; its source is `src/`. Edit `src/<fragment>/client.js`, then regenerate:
 
   ```bash
   node scripts/merge-client.mjs          # write lib/client.js
   node scripts/merge-client.mjs --check  # verify only; exits 1 when stale (fine for CI/precheck)
   ```
 
-  The script extracts each factory body from `src/{artifacts,long-term-memory,terminal-notes}/client.js`, rewrites the react / `react_jsx_runtime` bindings, strips inner `exports.` statements, and writes `lib/client.js`. **A change made directly in `lib/client.js` is lost on the next run** — the script prints a `would change +N/-M` warning before overwriting, and `--check` never writes at all.
+  The script extracts each factory body from `src/{composite,artifacts,long-term-memory,terminal-notes}/client.js`, rewrites the react / `react_jsx_runtime` bindings, strips inner `exports.` statements, and passes one shared `panels` registry into every fragment as its third argument (the panel fragments write, `composite` reads). **`composite` must be merged last**, or the registry is empty. **A change made directly in `lib/client.js` is lost on the next run** — the script prints a `would change +N/-M` warning before overwriting, and `--check` never writes at all.
 
 - Data locations: long-term memory `~/.dsh/dsh-memory/{global,user}.jsonl`, workspace `.dsh/memory.jsonl`; notes `~/.dsh/notes.json`.
 
 ## 🔒 Notes
 
 - Notes are stored as a single JSON document (the fs service offers no unlink primitive; a single atomic JSON rewrite is more reliable).
-- The panels no longer draw any column width or layout of their own: docking, floating, splitting and sizing all belong to the shipped `dsh-client-ui-sidebar-right` docking kit. Upgrading dsh can no longer clobber a layout patch from this package, because there is no longer one to clobber.
+- The panels no longer draw any column width or layout of their own: docking, floating, splitting and sizing all belong to the shipped `dsh-client-ui-sidebar-right` docking kit. The only layout this package owns is the split *inside* a pairing. Upgrading dsh can no longer clobber a layout patch from this package, because there is no longer one to clobber.
 - This package's services/routes/tools are registered on the calling fiber's lifecycle; stopping or hot-reloading removes every side effect.

@@ -351,68 +351,16 @@ window.__ModuleLoader__.load({
 			);
 		}
 
-		// ---- right-Sidebar tab types -----------------------------------------
-		const inject = ["slots", "locale", "sidebarRightTabs"];
-		/**
-		 * Seat a panel component as a right-Sidebar tab body.
-		 *
-		 * The Sidebar draws the tab strip, so the panel adds no chrome of its own
-		 * (`embedded`). The strip owns the close control; the panel's own ✕ stays
-		 * and is wired to that tab's close action, so the gesture is available
-		 * from inside the body too.
-		 * @param Component - the panel to seat.
-		 * @returns the component the `sidebar.right.pane.tab` seat renders.
-		 */
-		function makeTabBody(Component) {
-			return function TabBody(props) {
-				const { useTabInfo, sessionId, useSessions, useWorkspaces } = props;
-				const info = useTabInfo();
-				return react.createElement(Component, {
-					sessionId,
-					useSessions,
-					useWorkspaces,
-					embedded: true,
-					closeDetails: () => {
-						try { info.tab.actions.close(); } catch { /* tab already gone */ }
-					}
-				});
-			};
-		}
-		/**
-		 * Register a panel as a right-Sidebar tab type.
-		 *
-		 * DSH replaced the old `details` column with `rightbar`: third-party
-		 * panels now arrive as tab types, dispatched to a body registered under
-		 * the type's own `id`. A page type carries no address to be opened by, so
-		 * the `guide` entry is what makes it reachable — the strip's add control
-		 * opens the guide page, whose capsules call `openTab(kind)`.
-		 * @param ctx - client context (slots / locale / sidebarRightTabs).
-		 * @param panel - tab identity, label keys, and the component to seat.
-		 */
-		function mountPanel(ctx, panel) {
-			ctx.effect(() => ctx.sidebarRightTabs.register({
-				id: panel.typeId,
-				kind: panel.kind,
-				priority: "extension",
-				title: () => t(panel.titleKey),
-				guide: [{
-					order: panel.order,
-					title: () => t(panel.titleKey),
-					description: () => t(panel.descriptionKey)
-				}]
-			}), `${panel.typeId}: tab type`);
-			ctx.effect(() => ctx.slots.inject("sidebar.right.pane.tab", () => ctx.slots.register({
-				name: "sidebar.right.pane.tab",
-				key: panel.typeId,
-				locale: NS
-			}, makeTabBody(panel.component))), `${panel.typeId}: tab body`);
-		}
+		// ---- panel hand-off --------------------------------------------------
+		// The merged bundle owns the right-Sidebar tab types and pairs two panels
+		// per tab (see src/composite), so this fragment registers no seat.
+		const inject = ["locale"];
 
 		function apply(ctx) {
 			activeLocale = undefined;
 			ctx.effect(() => ctx.locale.register(NS, { zh, en }), "terminal-notes: dictionaries");
-			// Locale probe: the Sidebar passes no locale prop to a tab body, so
-			// bind once and reuse the plain t() in components.
+			// Locale probe: the panels take no props, so bind once and reuse the
+			// plain t() in components.
 			try {
 				const locale = ctx.get("locale");
 				if (locale && typeof locale.bind === "function") {
@@ -422,22 +370,8 @@ window.__ModuleLoader__.load({
 					else if (probe === en["terminal.run"]) activeLocale = "en";
 				}
 			} catch { /* keep zh default */ }
-			mountPanel(ctx, {
-				typeId: "dsh-minimal-ui-panels/terminal",
-				kind: "terminal",
-				order: 30,
-				titleKey: "terminal.title",
-				descriptionKey: "tab.terminalDescription",
-				component: TerminalPanel,
-			});
-			mountPanel(ctx, {
-				typeId: "dsh-minimal-ui-panels/notes",
-				kind: "notes",
-				order: 40,
-				titleKey: "notes.title",
-				descriptionKey: "tab.notesDescription",
-				component: NotesPanel,
-			});
+			panels.terminal = { Component: TerminalPanel, ns: NS, titleKey: "terminal.title", t };
+			panels.notes = { Component: NotesPanel, ns: NS, titleKey: "notes.title", t };
 		}
 
 		exports.apply = apply;

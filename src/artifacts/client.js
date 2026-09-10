@@ -979,81 +979,19 @@ window.__ModuleLoader__.load({
 		}
 		//#endregion
 		//#region lib/types/client/index.js
-		/** Required services: the slot registry, the locale seat, and the right Sidebar's tab-type registry. */
-		const inject = ["slots", "locale", "sidebarRightTabs"];
-		/** This panel's page kind in the right Sidebar. */
-		const TAB_KIND = "artifacts";
-		/** This implementation's identity in the tab system — also the key its body registers under. */
-		const TAB_ID = "dsh-minimal-ui-panels/artifacts";
-		/**
-		 * Seat a panel component as a right-Sidebar tab body.
-		 *
-		 * The Sidebar draws the tab strip, so the panel adds no chrome of its own
-		 * (`embedded`). The strip owns the close control; the panel's own ✕ stays
-		 * and is wired to that tab's close action, so the gesture is available
-		 * from inside the body too.
-		 * @param Component - the panel to seat.
-		 * @returns the component the `sidebar.right.pane.tab` seat renders.
-		 */
-		function makeTabBody(Component) {
-			return function TabBody(props) {
-				const { useTabInfo, sessionId, useSessions, useWorkspaces, t } = props;
-				const info = useTabInfo();
-				return react.createElement(Component, {
-					sessionId,
-					useSessions,
-					useWorkspaces,
-					t,
-					embedded: true,
-					closeDetails: () => {
-						try { info.tab.actions.close(); } catch { /* tab already gone */ }
-					}
-				});
-			};
-		}
-		/**
-		 * Register a panel as a right-Sidebar tab type.
-		 *
-		 * DSH replaced the old `details` column with `rightbar`: third-party
-		 * panels now arrive as tab types, dispatched to a body registered under
-		 * the type's own `id`. A page type carries no address to be opened by, so
-		 * the `guide` entry is what makes it reachable — the strip's add control
-		 * opens the guide page, whose capsules call `openTab(kind)`.
-		 * @param ctx - client context (slots / locale / sidebarRightTabs).
-		 * @param panel - tab identity, label namespace, and the component to seat.
-		 */
-		function mountPanel(ctx, panel) {
-			ctx.effect(() => ctx.sidebarRightTabs.register({
-				id: panel.typeId,
-				kind: panel.kind,
-				priority: "extension",
-				title: () => panel.t("panel.title"),
-				guide: [{
-					order: panel.order,
-					title: () => panel.t("panel.title"),
-					description: () => panel.t("tab.description")
-				}]
-			}), `${panel.typeId}: tab type`);
-			ctx.effect(() => ctx.slots.inject("sidebar.right.pane.tab", () => ctx.slots.register({
-				name: "sidebar.right.pane.tab",
-				key: panel.typeId,
-				locale: panel.locale
-			}, makeTabBody(panel.component))), `${panel.typeId}: tab body`);
-		}
-
+		/** This fragment registers no seat of its own; the merged bundle owns the tab type. */
+		const inject = ["locale"];
 		function apply(ctx) {
 			ctx.effect(() => ctx.locale.register(NS, {
 				zh,
 				en
 			}), "artifacts-panel: dictionaries");
-			mountPanel(ctx, {
-				typeId: TAB_ID,
-				kind: TAB_KIND,
-				order: 10,
-				locale: NS,
-				t: ctx.locale.bind(NS),
-				component: ArtifactsPanel
-			});
+			panels.artifacts = {
+				Component: ArtifactsPanel,
+				ns: NS,
+				titleKey: "panel.title",
+				t: ctx.locale.bind(NS)
+			};
 		}
 		//#endregion
 		exports.apply = apply;

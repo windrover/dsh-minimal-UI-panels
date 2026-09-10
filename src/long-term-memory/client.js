@@ -549,84 +549,29 @@ window.__ModuleLoader__.load({
 
 		//#region lib/types/client/apply.js
 		// Browser-side services this client bundle needs, resolved by the client
-		// module loader: slots (dsh-client-ui-slots), locale (dsh-client-locale),
-		// sidebarRightTabs (dsh-client-ui-sidebar-right).
-		const inject = ["slots", "locale", "sidebarRightTabs"];
-		/** This panel's page kind in the right Sidebar. */
-		const TAB_KIND = "long-term-memory";
-		/** This implementation's identity in the tab system — also the key its body registers under. */
-		const TAB_ID = "dsh-minimal-ui-panels/long-term-memory";
+		// module loader: slots (dsh-client-ui-slots, for the Settings card) and
+		// locale (dsh-client-locale). The right-Sidebar tab type belongs to the
+		// merged bundle — see the panel hand-off in apply().
+		const inject = ["slots", "locale"];
 		/**
-		 * Seat a panel component as a right-Sidebar tab body.
+		 * Contribute the panel and register the Settings → Plugins card.
 		 *
-		 * The Sidebar draws the tab strip, so the panel adds no chrome of its own
-		 * (`embedded`). The strip owns the close control; the panel's own ✕ stays
-		 * and is wired to that tab's close action, so the gesture is available
-		 * from inside the body too.
-		 * @param Component - the panel to seat.
-		 * @returns the component the `sidebar.right.pane.tab` seat renders.
+		 * The merged bundle pairs two panels per tab (see src/composite), so this
+		 * fragment registers no tab type of its own.
+		 * @param ctx - client context (slots / locale).
 		 */
-		function makeTabBody(Component) {
-			return function TabBody(props) {
-				const { useTabInfo, sessionId, useSessions, useWorkspaces, t } = props;
-				const info = useTabInfo();
-				return react.createElement(Component, {
-					sessionId,
-					useSessions,
-					useWorkspaces,
-					t,
-					embedded: true,
-					closeDetails: () => {
-						try { info.tab.actions.close(); } catch { /* tab already gone */ }
-					}
-				});
-			};
-		}
-		/**
-		 * Register a panel as a right-Sidebar tab type.
-		 *
-		 * DSH replaced the old `details` column with `rightbar`: third-party
-		 * panels now arrive as tab types, dispatched to a body registered under
-		 * the type's own `id`. A page type carries no address to be opened by, so
-		 * the `guide` entry is what makes it reachable — the strip's add control
-		 * opens the guide page, whose capsules call `openTab(kind)`.
-		 * @param ctx - client context (slots / locale / sidebarRightTabs).
-		 * @param panel - tab identity, label namespace, and the component to seat.
-		 */
-		function mountPanel(ctx, panel) {
-			ctx.effect(() => ctx.sidebarRightTabs.register({
-				id: panel.typeId,
-				kind: panel.kind,
-				priority: "extension",
-				title: () => panel.t("panel.title"),
-				guide: [{
-					order: panel.order,
-					title: () => panel.t("panel.title"),
-					description: () => panel.t("tab.description")
-				}]
-			}), `${panel.typeId}: tab type`);
-			ctx.effect(() => ctx.slots.inject("sidebar.right.pane.tab", () => ctx.slots.register({
-				name: "sidebar.right.pane.tab",
-				key: panel.typeId,
-				locale: panel.locale
-			}, makeTabBody(panel.component))), `${panel.typeId}: tab body`);
-		}
-
 		function apply(ctx) {
 			ctx.effect(() => ctx.locale.register(NS, { zh, en }), "long-term-memory: dictionaries");
 			// Bind the translator the panel's makeT() reads, so panel copy follows
-			// the active locale (the declaration above documents this as apply()'s job).
+			// the active locale.
 			ltmT = ctx.locale.bind(NS);
 
-			// Memory management panel: a tab in the right Sidebar.
-			mountPanel(ctx, {
-				typeId: TAB_ID,
-				kind: TAB_KIND,
-				order: 20,
-				locale: NS,
+			panels.longTermMemory = {
+				Component: MemoryPanel,
+				ns: NS,
+				titleKey: "panel.title",
 				t: ctx.locale.bind(NS),
-				component: MemoryPanel,
-			});
+			};
 
 			// Settings card in Settings → Plugins → long-term-memory.
 			// `key` matches the settings namespace so the Plugins page dispatches

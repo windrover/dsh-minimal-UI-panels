@@ -32,6 +32,9 @@ const SRC = {
   artifacts: join(ROOT, 'src', 'artifacts', 'client.js'),
   ltm: join(ROOT, 'src', 'long-term-memory', 'client.js'),
   terminalNotes: join(ROOT, 'src', 'terminal-notes', 'client.js'),
+  // LAST on purpose: the composite owns every right-Sidebar registration and
+  // renders from the `panels` registry the three fragments above fill in.
+  composite: join(ROOT, 'src', 'composite', 'client.js'),
 }
 
 // Fail loudly and specifically: a missing source is the one error whose old
@@ -82,19 +85,24 @@ function extractFactoryBody(file) {
 const parts = []
 for (const [key, file] of Object.entries(SRC)) {
   const body = extractFactoryBody(file)
-  parts.push(`\t// ---- ${key} (merged from ${file.split('/').pop()}) ----\n\tfunction ${key}(react, react_jsx_runtime) {\n${body}\n\t\treturn { apply, inject };\n\t}\n`)
+  // Every fragment receives the shared `panels` registry as its third argument.
+  // The three panel fragments WRITE their component into it; the composite READS
+  // it to build its tab bodies. That is the whole hand-off contract.
+  parts.push(`\t// ---- ${key} (merged from ${file.split('/').pop()}) ----\n\tfunction ${key}(react, react_jsx_runtime, panels) {\n${body}\n\t\treturn { apply, inject };\n\t}\n`)
 }
 
 const merged = `/**
- * dsh-minimal-ui-panels — Browser half (merged from three plugins).
+ * dsh-minimal-ui-panels — Browser half (merged from four fragments).
  *
- * Registers the artifacts / long-term-memory / terminal / notes panels as
- * right-Sidebar tab types. Each plugin's original factory body is preserved
- * verbatim inside its own scoped function (artifacts, ltm, terminalNotes) and
- * applied in sequence by the merged apply(). No container is needed any more:
- * DSH 0.1.5 replaced the single \`details\` column (which forced the merge in
- * the first place) with \`rightbar\`, where every panel owns its own tab kind
- * and body key, so the three sources mount independently.
+ * The browser half is one tab type per PAIRING of panels, not per panel: the
+ * composite fragment (src/composite) owns every right-Sidebar registration and
+ * stacks two panels per tab with a draggable divider, so two Sidebar panes show
+ * all four panels at once. The three panel fragments (artifacts, ltm,
+ * terminalNotes) contribute only their component, locale namespace and bound
+ * translator, through the \`panels\` registry created in apply() below and passed
+ * into every fragment as its third argument.
+ *
+ * Order matters: the panel fragments fill the registry, the composite reads it.
  */
 window.__ModuleLoader__.load({
 	id: "dsh-minimal-ui-panels",
@@ -106,9 +114,11 @@ window.__ModuleLoader__.load({
 		let react_jsx_runtime = require("react/jsx-runtime");
 ${parts.join('\n')}
 		function apply(ctx) {
-			artifacts(react, react_jsx_runtime).apply(ctx);
-			ltm(react, react_jsx_runtime).apply(ctx);
-			terminalNotes(react, react_jsx_runtime).apply(ctx);
+			const panels = {};
+			artifacts(react, react_jsx_runtime, panels).apply(ctx);
+			ltm(react, react_jsx_runtime, panels).apply(ctx);
+			terminalNotes(react, react_jsx_runtime, panels).apply(ctx);
+			composite(react, react_jsx_runtime, panels).apply(ctx);
 		}
 
 		const inject = ["slots", "locale", "sidebarRightTabs"];

@@ -1,7 +1,7 @@
 {
   "name": "dsh-minimal-ui-panels",
-  "version": "0.2.0",
-  "description": "All-in-one DeepSeek Harness UI panels: artifacts, long-term memory, terminal and notes as right-Sidebar tab types — one bundle, one loader row.",
+  "version": "0.3.0",
+  "description": "All-in-one DeepSeek Harness UI panels: artifacts, long-term memory, terminal and notes paired two per tab as right-Sidebar tab types, each with a draggable split — one bundle, one loader row.",
   "type": "module",
   "main": "lib/index.js",
   "exports": {
@@ -18,7 +18,7 @@
     "lib/index.js",
     "lib/client.js",
     "lib/host/*.js",
-    "src/**/*.js",
+    "src",
     "cordis.patch.yml",
     "README.md"
   ],
