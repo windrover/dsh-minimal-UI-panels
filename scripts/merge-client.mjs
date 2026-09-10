@@ -104,6 +104,37 @@ ${parts.join('\n')}
 });
 `
 
-writeFileSync(join(ROOT, 'lib', 'client.js'), merged)
+// ── overwrite guard ─────────────────────────────────────────────────────────
+// lib/client.js is a build artifact, but it is also the file people reach for
+// first when they want to tweak a panel. A hand-edit made here lives nowhere
+// else, and the next `node scripts/merge-client.mjs` silently destroys it —
+// which is exactly how the artifacts panel's grouping/sorting labels were lost
+// once. So: never overwrite quietly.
+const OUT = join(ROOT, 'lib', 'client.js')
+const CHECK_ONLY = process.argv.includes('--check')
+let previous = null
+try { previous = readFileSync(OUT, 'utf8') } catch { /* first run */ }
+
+if (previous === merged) {
+  console.log('✅ lib/client.js already up to date')
+  process.exit(0)
+}
+
+if (previous !== null) {
+  const before = previous.split('\n')
+  const after = merged.split('\n')
+  let changed = 0
+  for (let i = 0; i < Math.max(before.length, after.length); i += 1) if (before[i] !== after[i]) changed += 1
+  console.error(`⚠  lib/client.js would change (${changed} differing lines, ${before.length} → ${after.length} lines).`)
+  console.error('   Any hand-edit made directly in lib/client.js is about to be discarded.')
+  console.error('   Port it into the source repo under ../dsh-*/lib/client.js first — that is the only copy that survives.')
+}
+
+if (CHECK_ONLY) {
+  console.error('✗ --check: lib/client.js is stale; regenerate with `node scripts/merge-client.mjs`.')
+  process.exit(1)
+}
+
+writeFileSync(OUT, merged)
 console.log('✅ merged client written')
 console.log('size:', merged.length, 'chars')
