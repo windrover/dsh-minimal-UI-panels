@@ -202,6 +202,12 @@ Unchanged from the originals:
   node test/artifacts-scroll.test.mjs
   ```
 
+- `test/terminal-exec.test.mjs` covers the host half: it applies the plugin against a mock context, captures the route registered at `/api/terminal-notes/exec` and invokes it, asserting that the spawn asks for `stdin: 'ignore'` (fd 0 on /dev/null), carries an abort signal, and that a command killed at the deadline comes back as a classified `timeout` **with the output it managed to print**:
+
+  ```bash
+  node test/terminal-exec.test.mjs
+  ```
+
 - The browser half is a **generated artifact**; its source is `src/`. Edit `src/<fragment>/client.js`, then regenerate:
 
   ```bash
@@ -216,5 +222,6 @@ Unchanged from the originals:
 ## 🔒 Notes
 
 - Notes are stored as a single JSON document (the fs service offers no unlink primitive; a single atomic JSON rewrite is more reliable).
+- **The terminal is not an interactive shell**: it runs `bash -lc <the one line you typed>` and the child's stdin is `/dev/null`, so commands that *read* stdin (`bash`, `cat`, `read`, `python`, an editor) get EOF and exit instead of hanging the panel. Every command also has a **120-second deadline**; past it the command is killed and the output it already printed is returned with the failure. The deadline is the host config `terminalNotes.timeoutMs`. For anything interactive or long-running, use the session's own bash tool.
 - The panels no longer draw any column width or layout of their own: docking, floating, splitting and sizing all belong to the shipped `dsh-client-ui-sidebar-right` docking kit. The only layout this package owns is the split *inside* a pairing. Upgrading dsh can no longer clobber a layout patch from this package, because there is no longer one to clobber.
 - This package's services/routes/tools are registered on the calling fiber's lifecycle; stopping or hot-reloading removes every side effect.

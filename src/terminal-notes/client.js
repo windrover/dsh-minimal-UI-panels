@@ -26,6 +26,7 @@ window.__ModuleLoader__.load({
 			"terminal.run": "执行",
 			"terminal.running": "运行中…",
 			"terminal.error": "执行失败",
+			"terminal.timeout": "命令超时，已终止",
 			"terminal.exit": "退出码",
 			"notes.new": "新建",
 			"notes.delete": "删除",
@@ -48,6 +49,7 @@ window.__ModuleLoader__.load({
 			"terminal.run": "Run",
 			"terminal.running": "Running…",
 			"terminal.error": "Execution failed",
+			"terminal.timeout": "Command timed out and was killed",
 			"terminal.exit": "exit",
 			"notes.new": "New",
 			"notes.delete": "Delete",
@@ -108,7 +110,14 @@ window.__ModuleLoader__.load({
 					});
 					const data = await res.json();
 					if (!data.ok) {
-						setError(data.error || "unknown error");
+						// A command killed at the deadline may still have printed
+						// something useful; keep it under the error instead of
+						// throwing it away. `error` is a code, not prose, so the
+						// message can be localized here.
+						setOutput(data.output || "");
+						setError(data.error === "timeout"
+							? t("terminal.timeout") + ` (${Math.round((data.timeoutMs ?? 0) / 1000)}s)`
+							: (data.error || "unknown error"));
 					} else {
 						const suffix = data.code == null ? "" : `\n[${t("terminal.exit")} ${data.code}]`;
 						setOutput((data.output || "") + suffix);

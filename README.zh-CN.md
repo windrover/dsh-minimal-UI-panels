@@ -194,6 +194,12 @@ src/composite/client.js        ─┘   （必须最后合并：它读前面填�
   node test/artifacts-scroll.test.mjs
   ```
 
+- `test/terminal-exec.test.mjs` 是宿主侧测试：给宿主插件一个 mock ctx，抓住 `/api/terminal-notes/exec` 注册的路由并真正调用它，断言 spawn 用的是 `stdin: 'ignore'`（fd 0 指向 /dev/null）、带了 abort signal，且被执行期限终止的命令会返回分类后的 `timeout` 结果**连同它已经打印的输出**：
+
+  ```bash
+  node test/terminal-exec.test.mjs
+  ```
+
 - 浏览器半身是**生成产物**，源码在 `src/`。改面板 UI 请改 `src/<fragment>/client.js`，然后重新生成：
 
   ```bash
@@ -208,5 +214,6 @@ src/composite/client.js        ─┘   （必须最后合并：它读前面填�
 ## 🔒 注意事项
 
 - 记事本存储为单 JSON 文档（fs 服务无 unlink 原语，单文件原子重写更可靠）。
+- **终端不是交互式 shell**：它执行 `bash -lc <你输入的那一行>`，子进程的 stdin 是 `/dev/null`（所以 `bash`、`cat`、`read`、`python` 这类**读 stdin** 的命令会立刻拿到 EOF 退出，而不是把面板挂住）。每条命令有 **120 秒**执行期限，超时会被终止、并把已打印的输出一并返回；期限可用宿主配置 `terminalNotes.timeoutMs` 调整。需要交互或长时间的构建，请用会话自带的 bash 工具。
 - 面板不再自绘任何栏宽/布局；停靠、浮动、分屏与宽度都由官方 `dsh-client-ui-sidebar-right` 的 docking kit 决定。升级 dsh 不会再冲掉本包的布局改动（因为已经没有这类改动）。
 - 本包仅动态注册的服务/路由/工具随 fiber 生命周期；停止或热更新会移除全部副作用。
