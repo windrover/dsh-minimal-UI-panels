@@ -1,7 +1,7 @@
 {
   "name": "dsh-minimal-ui-panels",
-  "version": "0.1.0",
-  "description": "All-in-one DeepSeek Harness UI panels: Blender-style multi-panel details column (details-tabs) plus artifacts, long-term memory, terminal and notes panels — one bundle, one loader row.",
+  "version": "0.2.0",
+  "description": "All-in-one DeepSeek Harness UI panels: artifacts, long-term memory, terminal and notes as right-Sidebar tab types — one bundle, one loader row.",
   "type": "module",
   "main": "lib/index.js",
   "exports": {
@@ -36,7 +36,8 @@
         "@deepseek-ai/dsh-client-connection",
         "@deepseek-ai/dsh-client-locale",
         "@deepseek-ai/dsh-client-runtime",
-        "@deepseek-ai/dsh-client-ui-layout"
+        "@deepseek-ai/dsh-client-ui-session",
+        "@deepseek-ai/dsh-client-ui-sidebar-right"
       ],
       "platform": "web"
     }

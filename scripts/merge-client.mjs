@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Merge four client bundles into one dsh-minimal-UI-panels client bundle.
+// Merge the panel client bundles into one dsh-minimal-ui-panels client bundle.
 // Each source client.js is a `window.__ModuleLoader__.load({ id, factory })`
 // file. We extract each factory body (everything between the factory arrow
 // body and the trailing `return module.exports; });`) and wrap it as a
@@ -8,10 +8,16 @@
 // collisions are impossible. Each wrapped function receives the shared
 // `react` / `react_jsx_runtime` bindings and returns its { apply, inject }.
 //
+// The bundle used to merge four plugins because they all fought over the one
+// `details` column: dsh-details-tabs owned it and the panels registered into
+// its child slot. DSH 0.1.5 replaced that column with `rightbar`, where each
+// panel registers its own tab type — so the container plugin is gone and the
+// remaining three sources mount independently, with no slot contention left.
+//
 // Usage:  node scripts/merge-client.mjs
 // The source plugins are expected as SIBLING directories of this repo
-// (../dsh-details-tabs, ../dsh-artifacts-panel, ../dsh-long-term-memory,
-// ../dsh-terminal-notes). Output is written to ./lib/client.js.
+// (../dsh-artifacts-panel, ../dsh-long-term-memory, ../dsh-terminal-notes).
+// Output is written to ./lib/client.js.
 import { readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -19,7 +25,6 @@ import { fileURLToPath } from 'node:url'
 const HERE = dirname(fileURLToPath(import.meta.url))
 const ROOT = resolve(HERE, '..') // repo root (scripts/ is a child)
 const SRC = {
-  detailsTabs: join(ROOT, '..', 'dsh-details-tabs', 'lib', 'client.js'),
   artifacts: join(ROOT, '..', 'dsh-artifacts-panel', 'lib', 'client.js'),
   ltm: join(ROOT, '..', 'dsh-long-term-memory', 'lib', 'client.js'),
   terminalNotes: join(ROOT, '..', 'dsh-terminal-notes', 'lib', 'client.js'),
@@ -66,17 +71,18 @@ for (const [key, file] of Object.entries(SRC)) {
 }
 
 const merged = `/**
- * dsh-minimal-UI-panels — Browser half (merged from four plugins).
+ * dsh-minimal-ui-panels — Browser half (merged from three plugins).
  *
- * Registers the Blender-style details container (dsh-details-tabs) and the
- * artifacts / long-term-memory / terminal / notes panels. Each plugin's
- * original factory body is preserved verbatim inside its own scoped function
- * (detailsTabs, artifacts, ltm, terminalNotes) and applied in sequence by the
- * merged apply(). The container mounts first so the child panels find
- * the keyed child slot declared.
+ * Registers the artifacts / long-term-memory / terminal / notes panels as
+ * right-Sidebar tab types. Each plugin's original factory body is preserved
+ * verbatim inside its own scoped function (artifacts, ltm, terminalNotes) and
+ * applied in sequence by the merged apply(). No container is needed any more:
+ * DSH 0.1.5 replaced the single \`details\` column (which forced the merge in
+ * the first place) with \`rightbar\`, where every panel owns its own tab kind
+ * and body key, so the three sources mount independently.
  */
 window.__ModuleLoader__.load({
-	id: "dsh-minimal-UI-panels",
+	id: "dsh-minimal-ui-panels",
 	factory: (require) => {
 		var module = { exports: {} };
 		var exports = module.exports;
@@ -85,13 +91,12 @@ window.__ModuleLoader__.load({
 		let react_jsx_runtime = require("react/jsx-runtime");
 ${parts.join('\n')}
 		function apply(ctx) {
-			detailsTabs(react, react_jsx_runtime).apply(ctx);
 			artifacts(react, react_jsx_runtime).apply(ctx);
 			ltm(react, react_jsx_runtime).apply(ctx);
 			terminalNotes(react, react_jsx_runtime).apply(ctx);
 		}
 
-		const inject = ["slots", "locale", "layout"];
+		const inject = ["slots", "locale", "sidebarRightTabs"];
 		exports.apply = apply;
 		exports.inject = inject;
 		return module.exports;
