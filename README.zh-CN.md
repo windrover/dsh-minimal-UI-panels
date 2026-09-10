@@ -214,6 +214,6 @@ src/composite/client.js        ─┘   （必须最后合并：它读前面填�
 ## 🔒 注意事项
 
 - 记事本存储为单 JSON 文档（fs 服务无 unlink 原语，单文件原子重写更可靠）。
-- **终端不是交互式 shell**：它执行 `bash -lc <你输入的那一行>`，子进程的 stdin 是 `/dev/null`（所以 `bash`、`cat`、`read`、`python` 这类**读 stdin** 的命令会立刻拿到 EOF 退出，而不是把面板挂住）。每条命令有 **120 秒**执行期限，超时会被终止、并把已打印的输出一并返回；期限可用宿主配置 `terminalNotes.timeoutMs` 调整。需要交互或长时间的构建，请用会话自带的 bash 工具。
+- **终端不是交互式 shell**：它执行 `bash -lc <你输入的那一行>`，子进程的 stdin 是 `/dev/null`（所以 `bash`、`cat`、`read`、`python` 这类**读 stdin** 的命令会立刻拿到 EOF 退出，而不是把面板挂住）。命令运行中会出现**「终止」按钮**（对应宿主路由 `POST /api/terminal-notes/exec-cancel`，用面板为每次执行生成的 `runId` 定位正在跑的子进程）。每条命令另有 **120 秒**执行期限，超时会被终止、并把已打印的输出一并返回；期限可用宿主配置 `terminalNotes.timeoutMs` 调整。**手动终止与超时是两种不同结果**（`cancelled` / `timeout`），两者都会保留已打印的输出。需要交互或长时间的构建，请用会话自带的 bash 工具。
 - 面板不再自绘任何栏宽/布局；停靠、浮动、分屏与宽度都由官方 `dsh-client-ui-sidebar-right` 的 docking kit 决定。升级 dsh 不会再冲掉本包的布局改动（因为已经没有这类改动）。
 - 本包仅动态注册的服务/路由/工具随 fiber 生命周期；停止或热更新会移除全部副作用。

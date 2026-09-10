@@ -46,13 +46,23 @@ function createHarness(options = {}) {
         specs.push(spec)
         const stdout = { readFrom: () => ({ text: 'partial output', nextOffset: 0, lossy: false }) }
         const stderr = { readFrom: () => ({ text: '', nextOffset: 0, lossy: false }) }
-        const done = options.settle === 'onAbort'
+        let settle = () => {}
+        const done = new Promise((resolve) => { settle = resolve })
+        if (options.settle === 'immediately') {
+          settle({ exitCode: 0, signal: null })
+        } else if (options.settle === 'onAbort') {
           // A managed range that only goes away when the caller's signal fires.
-          ? new Promise((resolve) => {
-            spec.signal.addEventListener('abort', () => resolve({ exitCode: null, signal: 'SIGTERM' }), { once: true })
-          })
-          : Promise.resolve({ exitCode: 0, signal: null })
-        return { stdin: undefined, stdout: undefined, stderr: undefined, collected: { stdout, stderr }, done, terminate: () => {} }
+          spec.signal.addEventListener('abort', () => settle({ exitCode: null, signal: 'SIGTERM' }), { once: true })
+        }
+        // Otherwise ('onTerminate'): a child that only dies when terminated.
+        return {
+          stdin: undefined,
+          stdout: undefined,
+          stderr: undefined,
+          collected: { stdout, stderr },
+          done,
+          terminate: () => settle({ exitCode: null, signal: 'SIGKILL' }),
+        }
       },
     },
   }
@@ -122,4 +132,40 @@ function createHarness(options = {}) {
   )
 }
 
-console.log('✅ terminal exec OK — stdin is /dev/null, and a hung command is killed at the deadline with its output')
+// ---- a running command can be stopped on demand ----------------------------
+// Waiting out the deadline is not a way out of a command you regret; the panel
+// posts the id it named the run with, and that run must end.
+{
+  const harness = createHarness({ settle: 'onTerminate' })
+  assert.ok(harness.routes.has('/api/terminal-notes/exec-cancel'), 'the cancel route must be registered')
+
+  // Start the run without awaiting it: it stays open until cancelled.
+  const pending = harness.invoke('/api/terminal-notes/exec', { command: 'sleep 999', runId: 'run-1' })
+  while (harness.specs.length === 0) await new Promise((resolve) => setTimeout(resolve, 5))
+  // `activeRuns.set` runs synchronously right after spawn returns, so one more
+  // tick is enough for the run to be addressable.
+  await new Promise((resolve) => setTimeout(resolve, 5))
+
+  const stop = await harness.invoke('/api/terminal-notes/exec-cancel', { runId: 'run-1' })
+  assert.equal(stop.status, 200)
+  assert.equal(stop.json.ok, true)
+  assert.equal(stop.json.cancelled, true, 'the cancel route must report that it reached a run')
+
+  const exec = await pending
+  assert.equal(exec.json.ok, false, 'a stopped command is not a success')
+  assert.equal(exec.json.error, 'cancelled', 'stopping is classified apart from the deadline')
+  assert.equal(exec.json.output, 'partial output', 'a stopped command keeps what it printed')
+  assert.notEqual(exec.json.error, 'timeout', 'a manual stop must not be reported as a timeout')
+}
+
+// ---- cancelling something that already finished is not an error ------------
+{
+  const harness = createHarness({ settle: 'immediately' })
+  const { status, json } = await harness.invoke('/api/terminal-notes/exec-cancel', { runId: 'never-existed' })
+  assert.equal(status, 200)
+  assert.equal(json.ok, true, '"it is not running any more" is what the caller asked for')
+  assert.equal(json.cancelled, false)
+}
+
+console.log('✅ terminal exec OK — stdin is /dev/null; a hung command dies at the deadline, and a running one stops on demand')
+
