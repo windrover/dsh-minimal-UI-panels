@@ -188,6 +188,12 @@ src/composite/client.js        ─┘   （必须最后合并：它读前面填�
   node test/client-contract.test.mjs
   ```
 
+- `test/artifacts-scroll.test.mjs` 用一个极小的 hook 运行时**真实渲染产物面板**并驱动一次「打开预览 → 返回」的往返，断言列表滚动位置被还原、且还原发生在 **layout effect**（绘制前，不会先闪顶部再跳回）；同时验证换目录会丢弃记忆的偏移。它顺带能抓住「effect 依赖数组里引用了 TDZ 变量」这类 `node --check` 看不到的错误：
+
+  ```bash
+  node test/artifacts-scroll.test.mjs
+  ```
+
 - 浏览器半身是**生成产物**，源码在 `src/`。改面板 UI 请改 `src/<fragment>/client.js`，然后重新生成：
 
   ```bash

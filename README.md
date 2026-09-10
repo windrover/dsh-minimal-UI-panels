@@ -196,6 +196,12 @@ Unchanged from the originals:
   node test/client-contract.test.mjs
   ```
 
+- `test/artifacts-scroll.test.mjs` renders the artifacts panel for real with a minimal hook runtime and drives one preview round trip through its own state: the list offset must come back, and it must come back in a **layout effect** (before paint, so the return does not flash the top and then jump). It also checks that a directory change drops the remembered offset. Rendering the panel is what catches a temporal-dead-zone reference in an effect's dependency array — something `node --check` cannot see:
+
+  ```bash
+  node test/artifacts-scroll.test.mjs
+  ```
+
 - The browser half is a **generated artifact**; its source is `src/`. Edit `src/<fragment>/client.js`, then regenerate:
 
   ```bash
