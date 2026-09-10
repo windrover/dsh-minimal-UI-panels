@@ -14,20 +14,35 @@
 // panel registers its own tab type — so the container plugin is gone and the
 // remaining three sources mount independently, with no slot contention left.
 //
-// Usage:  node scripts/merge-client.mjs
-// The source plugins are expected as SIBLING directories of this repo
-// (../dsh-artifacts-panel, ../dsh-long-term-memory, ../dsh-terminal-notes).
+// Usage:  node scripts/merge-client.mjs [--check]
+// The sources live IN THIS REPO, under src/<panel>/client.js. They used to be
+// read from sibling checkouts of the three original plugin repos, which was a
+// trap: those repos are archived on GitHub, so a source edit made only there —
+// or worse, made directly in the generated lib/client.js — had no version
+// control behind it at all. Vendoring them here is what makes the browser half
+// reproducible from a clone.
 // Output is written to ./lib/client.js.
-import { readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const ROOT = resolve(HERE, '..') // repo root (scripts/ is a child)
 const SRC = {
-  artifacts: join(ROOT, '..', 'dsh-artifacts-panel', 'lib', 'client.js'),
-  ltm: join(ROOT, '..', 'dsh-long-term-memory', 'lib', 'client.js'),
-  terminalNotes: join(ROOT, '..', 'dsh-terminal-notes', 'lib', 'client.js'),
+  artifacts: join(ROOT, 'src', 'artifacts', 'client.js'),
+  ltm: join(ROOT, 'src', 'long-term-memory', 'client.js'),
+  terminalNotes: join(ROOT, 'src', 'terminal-notes', 'client.js'),
+}
+
+// Fail loudly and specifically: a missing source is the one error whose old
+// symptom was a *stale but valid* bundle (the sibling checkout silently
+// disappeared and the merge kept emitting whatever it last read).
+for (const [name, file] of Object.entries(SRC)) {
+  if (!existsSync(file)) {
+    console.error(`✗ merge-client: source "${name}" not found at ${file}`)
+    console.error('  The panel sources are vendored in this repo under src/. Restore the file, or update SRC.')
+    process.exit(1)
+  }
 }
 
 function extractFactoryBody(file) {
@@ -137,7 +152,7 @@ if (previous !== null) {
   for (const [line, n] of before) removed += Math.max(0, n - (after.get(line) ?? 0))
   console.error(`⚠  lib/client.js would change: +${added} / -${removed} lines (${previous.split('\n').length} → ${merged.split('\n').length}).`)
   console.error('   Any hand-edit made directly in lib/client.js is about to be discarded.')
-  console.error('   Port it into the source repo under ../dsh-*/lib/client.js first — that is the only copy that survives.')
+  console.error('   Port it into src/<panel>/client.js first — that is the copy this script reads, and the only one under version control.')
 }
 
 if (CHECK_ONLY) {

@@ -105,10 +105,15 @@ dsh-minimal-UI-panels  (一个 loader 行 / 一个包)
 │       inject = tools, systemPrompt, commands, settings, agents,
 │                webServer, workspaceRegistry, subprocess, fs
 │
-└── lib/client.js  ── 浏览器半身【合并单 bundle = scripts/merge-client.mjs 生成】
-    ├── function artifacts(react, react_jsx_runtime)     ← 原 dsh-artifacts-panel factory 体
-    ├── function ltm(react, react_jsx_runtime)           ← 原 dsh-long-term-memory factory 体
-    └── function terminalNotes(react, react_jsx_runtime) ← 原 dsh-terminal-notes factory 体
+├── src/           ── 浏览器半身源码【改面板 UI 就改这里，受版本控制】
+│   ├── artifacts/client.js          ← 原 dsh-artifacts-panel factory 体
+│   ├── long-term-memory/client.js   ← 原 dsh-long-term-memory factory 体
+│   └── terminal-notes/client.js     ← 原 dsh-terminal-notes factory 体
+│
+└── lib/client.js  ── 浏览器半身【合并单 bundle = scripts/merge-client.mjs 生成，勿手改】
+    ├── function artifacts(react, react_jsx_runtime)     ← 提取自 src/artifacts/client.js
+    ├── function ltm(react, react_jsx_runtime)           ← 提取自 src/long-term-memory/client.js
+    └── function terminalNotes(react, react_jsx_runtime) ← 提取自 src/terminal-notes/client.js
         每个 fn 末尾 return { apply, inject }
     └── function apply(ctx)   ← 主入口，依次调用 3 个 fn 的 apply
         exports.inject = ["slots", "locale", "sidebarRightTabs"]
@@ -125,13 +130,15 @@ dsh-minimal-UI-panels  (一个 loader 行 / 一个包)
 合并流程（详见 `scripts/merge-client.mjs`）：
 
 ```
-dsh-artifacts-panel/lib/client.js ─┐
-dsh-long-term-memory/lib/client.js ├─ 提取 factory 体 → 改写 react/react_jsx_runtime
-dsh-terminal-notes/lib/client.js  ─┘   绑定、删除子模块内 exports. 语句
+src/artifacts/client.js        ─┐
+src/long-term-memory/client.js ├─ 提取 factory 体 → 改写 react/react_jsx_runtime
+src/terminal-notes/client.js   ─┘   绑定、删除子模块内 exports. 语句
                                            │
                                            ▼
                             lib/client.js  (单 __ModuleLoader__.load bundle)
 ```
+
+> 📌 **源码就在本仓库**（`src/<panel>/client.js`）。早期版本从三个**兄弟目录**读取，而那三个仓库后来被 GitHub 归档（只读，push 返回 403），源码没有任何版本控制兜底；当时直接改生成产物 `lib/client.js` 的改动被下一次合并覆盖后**无法从 git 恢复**。现已内联——克隆本仓库即可完整重建浏览器半身。
 
 > ⚠️ **关键约定：三处名字必须逐字节一致**（本包为小写 `dsh-minimal-ui-panels`）
 >
@@ -177,13 +184,14 @@ dsh-terminal-notes/lib/client.js  ─┘   绑定、删除子模块内 exports. 
   node test/client-contract.test.mjs
   ```
 
-- 浏览器半身由仓库内脚本生成：
+- 浏览器半身是**生成产物**，源码在 `src/`。改面板 UI 请改 `src/<panel>/client.js`，然后重新生成：
 
   ```bash
-  node scripts/merge-client.mjs
+  node scripts/merge-client.mjs          # 生成 lib/client.js
+  node scripts/merge-client.mjs --check  # 只校验是否过期（过期退 1，可挂进 CI/预检）
   ```
 
-  它会读取三个原始插件（作为本仓库的**兄弟目录** `../dsh-{artifacts-panel,long-term-memory,terminal-notes}/lib/client.js`），提取 factory 体、改写 react/`react_jsx_runtime` 绑定、删除子模块内 `exports.` 语句，输出 `lib/client.js`。重新生成后务必核对：`react_jsx_runtime` 有定义、子模块无残留 `exports.`、`__ModuleLoader__.load` 的 id 与 `package.json` 的 `name` 一致。
+  脚本从 `src/{artifacts,long-term-memory,terminal-notes}/client.js` 提取 factory 体、改写 react/`react_jsx_runtime` 绑定、删除子模块内 `exports.` 语句，输出 `lib/client.js`。**直接改 `lib/client.js` 的改动会在下次生成时丢失**——脚本覆盖前会打印「would change +N/-M」警告，`--check` 则完全不写文件。
 
 - 数据位置：长期记忆 `~/.dsh/dsh-memory/{global,user}.jsonl`、工作区 `.dsh/memory.jsonl`；记事本 `~/.dsh/notes.json`。
 
