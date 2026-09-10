@@ -121,11 +121,21 @@ if (previous === merged) {
 }
 
 if (previous !== null) {
-  const before = previous.split('\n')
-  const after = merged.split('\n')
-  let changed = 0
-  for (let i = 0; i < Math.max(before.length, after.length); i += 1) if (before[i] !== after[i]) changed += 1
-  console.error(`⚠  lib/client.js would change (${changed} differing lines, ${before.length} → ${after.length} lines).`)
+  // Multiset difference, NOT an index-by-index walk: inserting one line shifts
+  // every later line, so a positional compare reports thousands of "changes"
+  // for a one-line edit and the warning stops meaning anything.
+  const counts = (text) => {
+    const map = new Map()
+    for (const line of text.split('\n')) map.set(line, (map.get(line) ?? 0) + 1)
+    return map
+  }
+  const before = counts(previous)
+  const after = counts(merged)
+  let added = 0
+  let removed = 0
+  for (const [line, n] of after) added += Math.max(0, n - (before.get(line) ?? 0))
+  for (const [line, n] of before) removed += Math.max(0, n - (after.get(line) ?? 0))
+  console.error(`⚠  lib/client.js would change: +${added} / -${removed} lines (${previous.split('\n').length} → ${merged.split('\n').length}).`)
   console.error('   Any hand-edit made directly in lib/client.js is about to be discarded.')
   console.error('   Port it into the source repo under ../dsh-*/lib/client.js first — that is the only copy that survives.')
 }
