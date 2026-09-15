@@ -86,9 +86,15 @@ const slotRegistrations = []
 const injections = []
 const dicts = {}
 
+// The locale service reports its DEFAULT while plugins are applying, and only
+// picks up the user's preference afterwards — that is what the real one does,
+// and it is why a translator captured during apply() comes out in the wrong
+// language. Anything that resolves the language at call time survives it.
+const localeState = { active: 'en' }
+
 const localeService = {
   register: (ns, d) => { dicts[ns] = d },
-  bind: (ns) => (key) => dicts[ns]?.zh?.[key] ?? key,
+  bind: (ns) => (key) => dicts[ns]?.[localeState.active]?.[key] ?? key,
 }
 const ctx = {
   effect: (cb) => { const d = cb(); return typeof d === 'function' ? d : () => {} },
@@ -104,6 +110,9 @@ const ctx = {
 }
 
 bundle.apply(ctx)
+// The preference lands now. Every title asserted below is Chinese, so a panel
+// that resolved its language during apply() fails here.
+localeState.active = 'zh'
 
 // The real shell mounts both seats, so flush every injection.
 for (const injection of injections) injection.cb()
