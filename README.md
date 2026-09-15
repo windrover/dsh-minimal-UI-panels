@@ -26,13 +26,13 @@
 | **Terminal panel** | A dark-themed bash command runner (`bash -lc`), output collected and returned; common-command hints stay pinned below |
 | **Notes panel** | Apple-Notes-style multi-note scratchpad: sidebar list + editor, create/delete, autosave (600 ms debounce), auto-title from the first line, stored at `~/.dsh/notes.json` |
 
-## 📸 Screenshots
+## 📸 Screenshot
 
-The four panels (Artifacts / Long-term memory / Notes / Terminal):
+The **Artifacts + Terminal** pairing open in the right Sidebar: the artifacts panel on top, the terminal below, and the draggable divider between them. The chip in the strip is the pairing's tab type.
 
-> ⚠️ The shot below shows the 0.1.x self-drawn `details` container. From 0.2.0 the panels live in the shipped right Sidebar, and from 0.3.0 they are paired, so the strip, split and float controls look like DSH's own.
+<img src="docs/screenshot.png" alt="The artifacts + terminal pairing open in the right Sidebar" width="400">
 
-<img src="docs/screenshot.png" alt="panels" width="460">
+To get all four panels on screen at once, drag a tab to the **left or right edge of a pane** to split off a second one and open the other pairing there — two panes side by side, with each panel taking half of a pane's height.
 
 ## 📦 Install
 
