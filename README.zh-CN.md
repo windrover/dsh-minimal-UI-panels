@@ -10,9 +10,9 @@
   <img src="https://img.shields.io/badge/panels-4-ff69b4" alt="panels">
 </p>
 
-> All-in-one DeepSeek Harness UI panels — 一个 bundle、一个 loader 行，把产物 / 长期记忆 / 终端 / 记事本**两两配对**成 2 个右侧栏标签页类型，每个标签内部上下可拖分栏。
+> All-in-one DeepSeek Harness UI panels — 一个 bundle、一个 loader 行，把产物 / 记忆 / 终端 / 记事本**两两配对**成 2 个右侧栏标签页类型，每个标签内部上下可拖分栏。
 
-`dsh-minimal-UI-panels` 把三个原本独立的 DSH 插件合并为一个包，并以**单 loader 行**挂载。面板**两两配对**注册为 `@deepseek-ai/dsh-client-ui-sidebar-right` 的**标签页类型**（`ctx.sidebarRightTabs`）：`产物 + 终端`、`长期记忆 + 记事本`，每个标签内部上下叠放、中间可拖动分栏——这样把两个窗格并排就能同时看到 4 个面板。同时提供宿主侧工具/路由，即插即用。
+`dsh-minimal-UI-panels` 把三个原本独立的 DSH 插件合并为一个包，并以**单 loader 行**挂载。面板**两两配对**注册为 `@deepseek-ai/dsh-client-ui-sidebar-right` 的**标签页类型**（`ctx.sidebarRightTabs`）：`产物 + 终端`、`记忆 + 记事本`，每个标签内部上下叠放、中间可拖动分栏——这样把两个窗格并排就能同时看到 4 个面板。同时提供宿主侧工具/路由，即插即用。
 
 > **DSH 0.1.5 起架构已变**：旧版那个可被第三方占用的 `details` 列已被 `rightbar` 取代，由官方右侧栏（docking kit + 标签类型注册表）接管。本包 0.2.0 完成该迁移——不再有自绘的多面板容器。
 
@@ -22,7 +22,7 @@
 |---|---|
 | **成对的右侧栏标签页类型** | 每个类型 = **一对面板**，上下叠放、中间是可拖动的分隔条（比例按类型记住，双击回到 50/50）。停靠 / 浮动 / 分屏由官方 docking kit 提供；**把两个窗格并排，就能同时看到 4 个面板**。入口是标签条的「+」→ guide 页 |
 | **产物面板** | 扫描工作区产物文件，按类型/日期/体积/行数分组排序；代码/配置/数据预览语法高亮；图片 base64 预览（4 MiB 上限）；mp4/m4v/webm/ogv 视频流式播放（支持 Range 请求） |
-| **长期记忆面板** | 三作用域（user/global/workspace）记忆的查看、新增、搜索、编辑；标签分组；内容高亮；配套 `memory_*` 工具与 `/memory` 命令 |
+| **记忆面板** | 三作用域（user/global/workspace）记忆的查看、新增、搜索、编辑；标签分组；内容高亮 |
 | **终端面板** | 深色终端外观的 bash 命令执行器（`bash -lc`），输出收集后返回，下方常驻常用命令提示 |
 | **记事本面板** | Apple 便签风格多条目记事：侧边列表 + 正文编辑、新建/删除、自动保存（600ms 防抖）、按首行自动命名，存储于 `~/.dsh/notes.json` |
 
@@ -34,7 +34,7 @@
 
 把另一个标签**拖到窗格的左/右边缘**就分出第二个窗格——两个窗格并排，四个面板同时可见：
 
-<img src="docs/screenshot-split.png" alt="两个窗格并排，同时显示产物、终端、长期记忆、记事本四个面板" width="660">
+<img src="docs/screenshot-split.png" alt="两个窗格并排，同时显示产物、终端、记忆、记事本四个面板" width="660">
 
 ## 📦 安装
 

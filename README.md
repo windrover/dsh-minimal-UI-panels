@@ -10,7 +10,7 @@
   <img src="https://img.shields.io/badge/panels-4-ff69b4" alt="panels">
 </p>
 
-> All-in-one DeepSeek Harness UI panels — one bundle, one loader row: artifacts, long-term memory, terminal and notes **paired two per tab** into right-Sidebar tab types, each with a draggable split inside.
+> All-in-one DeepSeek Harness UI panels — one bundle, one loader row: artifacts, memory, terminal and notes **paired two per tab** into right-Sidebar tab types, each with a draggable split inside.
 
 `dsh-minimal-UI-panels` merges three formerly separate DSH plugins into a single package mounted as **one loader row**. The panels are **paired** into right-Sidebar **tab types** (`ctx.sidebarRightTabs`) on `@deepseek-ai/dsh-client-ui-sidebar-right` — `Artifacts + Terminal` and `Memory + Notes` — and each tab stacks its two panels with a draggable divider, so two Sidebar panes side by side show **all four panels at once**. It also ships the host-side tools/routes — plug and play.
 
@@ -22,7 +22,7 @@
 |---|---|
 | **Paired right-Sidebar tab types** | One tab type = **one pair of panels**, stacked vertically with a draggable divider between them (the split is remembered per pairing; double-click the divider for 50/50). Docking, floating and splitting come from the shipped docking kit, so **two panes side by side show all four panels**. The way in is the strip's add control → the guide page |
 | **Artifacts panel** | Scans workspace artifact files, groups/sorts by type/date/size/line count; syntax-highlighted code/config/data previews; inline base64 image previews (4 MiB cap); mp4/m4v/webm/ogv video streaming (Range requests) |
-| **Long-term memory panel** | View/add/search/edit memory across three scopes (user/global/workspace); tag grouping; content highlighting; pairs with `memory_*` tools and the `/memory` command |
+| **Memory panel** | View/add/search/edit memory across three scopes (user/global/workspace); tag grouping; content highlighting |
 | **Terminal panel** | A dark-themed bash command runner (`bash -lc`), output collected and returned; common-command hints stay pinned below |
 | **Notes panel** | Apple-Notes-style multi-note scratchpad: sidebar list + editor, create/delete, autosave (600 ms debounce), auto-title from the first line, stored at `~/.dsh/notes.json` |
 
@@ -34,7 +34,7 @@ The **Artifacts + Terminal** pairing open in the right Sidebar: the artifacts pa
 
 Drag a tab to the **left or right edge of a pane** and it splits off a second pane — two panes side by side, all four panels on screen at once:
 
-<img src="docs/screenshot-split.png" alt="Two panes side by side showing artifacts, terminal, long-term memory and notes at the same time" width="660">
+<img src="docs/screenshot-split.png" alt="Two panes side by side showing artifacts, terminal, memory and notes at the same time" width="660">
 
 ## 📦 Install
 
