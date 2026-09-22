@@ -73,6 +73,29 @@ window.__ModuleLoader__.load({
 			"settings.requireApproval": "写入审批",
 			"settings.charLimit": "字符预算",
 			"settings.saved": "已保存",
+			"settings.semanticRecall": "语义召回（查询扩展）",
+			"settings.semanticRecallDesc": "召回前让 LLM 把查询扩展成同义/改写变体再 BM25 合并，能抓回改写过的记忆（额外模型调用）",
+			"settings.semanticRerank": "语义重排",
+			"settings.semanticRerankDesc": "对 BM25 候选让 LLM 打 0–3 相关性分再排序，提升噪声库的精度（额外模型调用）",
+			"settings.semanticDedupThreshold": "写入语义去重阈值",
+			"settings.semanticDedupThresholdDesc": "autoSummarize 落库前，与既有记忆相似度≥此值则跳过，避免重复堆积（0=关闭，仅精确去重）",
+			"settings.autoConsolidate": "主动整合",
+			"settings.autoConsolidateDesc": "空闲期把近似重复/重叠记忆合并成更少更凝练的条目，避免库只增不减（需开启 LLM 压缩）",
+			"settings.consolidateIntervalMs": "整合间隔（毫秒）",
+			"settings.consolidateMaxEntries": "整合触发条数",
+			"settings.autoApproveAfterMs": "待确认自动放行（毫秒）",
+			"settings.autoApproveAfterMsDesc": "开启写入审批后，autoSummarize 蒸馏的事实先进待确认队列；超过此时长未处理则自动落库（0=永不自动）",
+			"panel.pending": "待确认",
+			"panel.pendingEmpty": "队列为空",
+			"panel.pendingApprove": "批准",
+			"panel.pendingReject": "拒绝",
+			"panel.pendingAutoIn": "自动放行倒计时",
+			"panel.health": "健康度",
+			"panel.healthLive": "有效记忆",
+			"panel.healthUsage": "字符占用",
+			"panel.healthDup": "近重复",
+			"panel.healthSuperseded": "已更正",
+			"panel.healthPending": "待确认",
 		};
 		const en = {
 			"panel.title": "Long-term memory",
@@ -119,6 +142,29 @@ window.__ModuleLoader__.load({
 			"settings.requireApproval": "Write approval",
 			"settings.charLimit": "Char budget",
 			"settings.saved": "Saved",
+			"settings.semanticRecall": "Semantic recall (query expansion)",
+			"settings.semanticRecallDesc": "Before recall, ask the LLM to expand the query into paraphrase/synonym variants and BM25-merge them — catches rewritten memories (extra model call)",
+			"settings.semanticRerank": "Semantic rerank",
+			"settings.semanticRerankDesc": "Have the LLM score BM25 candidates 0–3 and re-rank — improves precision on noisy stores (extra model call)",
+			"settings.semanticDedupThreshold": "Write dedup threshold",
+			"settings.semanticDedupThresholdDesc": "On autoSummarize write, skip a fact whose Jaccard similarity to an existing memory ≥ this — avoids duplicate buildup (0 = off, exact dedup only)",
+			"settings.autoConsolidate": "Auto-consolidation",
+			"settings.autoConsolidateDesc": "In idle, merge near-duplicate/overlapping memories into fewer, concise entries so the store stops growing dirty (needs LLM compression on)",
+			"settings.consolidateIntervalMs": "Consolidation interval (ms)",
+			"settings.consolidateMaxEntries": "Consolidation trigger count",
+			"settings.autoApproveAfterMs": "Pending auto-approve (ms)",
+			"settings.autoApproveAfterMsDesc": "With write approval on, autoSummarize facts wait in a pending queue; older than this are auto-committed (0 = never)",
+			"panel.pending": "Pending",
+			"panel.pendingEmpty": "Queue is empty",
+			"panel.pendingApprove": "Approve",
+			"panel.pendingReject": "Reject",
+			"panel.pendingAutoIn": "Auto-approve in",
+			"panel.health": "Health",
+			"panel.healthLive": "Live memories",
+			"panel.healthUsage": "Chars used",
+			"panel.healthDup": "Near-dupes",
+			"panel.healthSuperseded": "Superseded",
+			"panel.healthPending": "Pending",
 		};
 		//#endregion
 
@@ -258,6 +304,8 @@ window.__ModuleLoader__.load({
 			const [importOpen, setImportOpen] = react.useState(false);
 			const [importText, setImportText] = react.useState("");
 			const [notice, setNotice] = react.useState(null);
+			const [pending, setPending] = react.useState([]); // 待确认队列
+			const [showPending, setShowPending] = react.useState(false);
 
 			const load = react.useCallback(async () => {
 				try {
@@ -267,6 +315,10 @@ window.__ModuleLoader__.load({
 					const settings = await apiGet("/api/memory/settings");
 					setUsage(data.results.reduce((s, r) => s + (r.content?.length || 0), 0));
 					setLimit(settings.charLimit || 0);
+					try {
+						const pd = await apiGet("/api/memory/pending");
+						setPending(pd.items || []);
+					} catch { /* pending 路由不可用时忽略 */ }
 					setError(null);
 				} catch (e) {
 					setError(String(e.message || e));
@@ -362,6 +414,44 @@ window.__ModuleLoader__.load({
 					setError(String(e.message || e));
 				}
 			}, [importText, load]);
+
+			// ── 待确认队列：批准 / 拒绝 ───────────────────────────────────────
+			const resolvePending = react.useCallback(async (id, action) => {
+				try {
+					await apiPost("/api/memory/pending", { id, action });
+					await load();
+				} catch (e) {
+					setError(String(e.message || e));
+				}
+			}, [load]);
+
+			// ── 健康度（从已有 list + pending 推导，无需新接口）──────────────────
+			const allRecords = records || [];
+			const liveRecords = allRecords.filter((r) => r.superseded !== true);
+			const supersededCount = allRecords.length - liveRecords.length;
+			// 近似重复：任意两条 live 记忆 Jaccard 相似度 ≥ 0.6 即算一对近重复。
+			function jaccard(a, b) {
+				const ta = new Set((a.content || "").split(/\s+/).filter(Boolean));
+				const tb = new Set((b.content || "").split(/\s+/).filter(Boolean));
+				if (ta.size === 0 || tb.size === 0) return 0;
+				let inter = 0;
+				for (const w of ta) if (tb.has(w)) inter += 1;
+				return inter / (ta.size + tb.size - inter);
+			}
+			let dupPairs = 0;
+			for (let i = 0; i < liveRecords.length; i++) {
+				for (let j = i + 1; j < liveRecords.length; j++) {
+					if (jaccard(liveRecords[i], liveRecords[j]) >= 0.6) dupPairs += 1;
+				}
+			}
+			const health = {
+				live: liveRecords.length,
+				usage,
+				limit: limit || 0,
+				dupPairs,
+				superseded: supersededCount,
+				pending: pending.length,
+			};
 
 			const scopeOptions = ["user", "global", "workspace"].map((s) =>
 				react.createElement("option", { key: s, value: s }, t(`scope.${s}`))
@@ -472,7 +562,38 @@ window.__ModuleLoader__.load({
 				react.createElement("button", { onClick: () => setImportOpen(!importOpen), style: btnStyle }, t("panel.import")),
 				react.createElement("button", { onClick: () => setEditing({ scope: "global", content: "", tags: "" }), style: { ...btnStyle, background: "rgba(60,140,255,.2)", borderColor: "rgba(60,140,255,.4)" } }, t("panel.add")),
 				react.createElement("button", { onClick: () => setShowSettings(!showSettings), style: { ...btnStyle, background: showSettings ? "rgba(60,200,120,.2)" : undefined } }, t("panel.settings")),
+				react.createElement("button", { onClick: () => setShowPending(!showPending), style: { ...btnStyle, background: showPending ? "rgba(60,200,120,.2)" : pending.length ? "rgba(220,160,40,.25)" : undefined } }, `${t("panel.pending")}${pending.length ? ` (${pending.length})` : ""}`),
 				usage > 0 && react.createElement("span", { style: { fontSize: 11, opacity: .6, marginLeft: "auto" } }, t("panel.usage", { used: usage, limit })),
+			);
+
+			// 待确认队列视图（与列表互斥展示）。
+			const pendingView = showPending && react.createElement("div", { style: { border: "1px solid rgba(220,160,40,.4)", padding: 8, marginBottom: 8, borderRadius: 6 } },
+				react.createElement("div", { style: { fontWeight: 700, marginBottom: 6 } }, t("panel.pending")),
+				pending.length === 0
+					? react.createElement("div", { style: { opacity: .6 } }, t("panel.pendingEmpty"))
+					: pending.map((it) =>
+						react.createElement("div", { key: it.id, style: { borderBottom: "1px solid rgba(128,128,128,.2)", padding: "6px 0" } },
+							react.createElement("div", { style: { display: "flex", gap: 6, alignItems: "center", fontSize: 11, opacity: .6 } },
+								react.createElement("span", null, t(`scope.${it.scope === "user" ? "user" : it.scope === "global" ? "global" : "workspace"}`)),
+								it.autoApproveInMs != null && react.createElement("span", null, `${t("panel.pendingAutoIn")}: ${Math.ceil(it.autoApproveInMs / 60000)}m`),
+							),
+							react.createElement("div", { style: { marginTop: 2, whiteSpace: "pre-wrap" } }, it.content),
+							(it.tags && it.tags.length > 0) && react.createElement("div", { style: { fontSize: 11, color: "var(--dsw-alias-label-tertiary, #a4a4a4)" } }, it.tags.map((tag) => `#${tag}`).join(" ")),
+							react.createElement("div", { style: { marginTop: 4, display: "flex", gap: 6 } },
+								react.createElement("button", { onClick: () => resolvePending(it.id, "approve"), style: { ...btnStyle, color: "#3a9" } }, t("panel.pendingApprove")),
+								react.createElement("button", { onClick: () => resolvePending(it.id, "reject"), style: { ...btnStyle, color: "#c33" } }, t("panel.pendingReject")),
+							),
+						)
+					),
+			);
+
+			// 健康度条：有效记忆 / 字符占用 / 近重复 / 已更正 / 待确认。
+			const healthStrip = react.createElement("div", { style: { display: "flex", gap: 10, flexWrap: "wrap", fontSize: 11, opacity: .75, marginBottom: 8 } },
+				react.createElement("span", null, `${t("panel.healthLive")}: ${health.live}`),
+				react.createElement("span", null, `${t("panel.healthUsage")}: ${health.usage}/${health.limit || "?"}`),
+				react.createElement("span", { style: health.dupPairs > 0 ? { color: "#c93" } : undefined }, `${t("panel.healthDup")}: ${health.dupPairs}`),
+				react.createElement("span", { style: health.superseded > 0 ? { color: "#b8860b" } : undefined }, `${t("panel.healthSuperseded")}: ${health.superseded}`),
+				health.pending > 0 && react.createElement("span", { style: { color: "#da4" } }, `${t("panel.healthPending")}: ${health.pending}`),
 			);
 
 			const body = showSettings
@@ -480,6 +601,8 @@ window.__ModuleLoader__.load({
 				: react.createElement("div", null,
 					editor,
 					importRow,
+					pendingView,
+					healthStrip,
 					loading ? react.createElement("div", null, t("panel.loading")) : (sections.length ? sections : react.createElement("div", { style: { opacity: .6 } }, (records && records.length > 0) ? t("panel.emptyFilter") : t("panel.empty"))),
 				);
 
@@ -540,6 +663,20 @@ window.__ModuleLoader__.load({
 					)),
 				row(t("settings.requireApproval"), null,
 					react.createElement("input", { type: "checkbox", checked: !!cfg.requireApprovalForWrite, onChange: (e) => set({ requireApprovalForWrite: e.target.checked }) })),
+				row(t("settings.semanticRecall"), t("settings.semanticRecallDesc"),
+					react.createElement("input", { type: "checkbox", checked: !!cfg.semanticRecall, onChange: (e) => set({ semanticRecall: e.target.checked }) })),
+				row(t("settings.semanticRerank"), t("settings.semanticRerankDesc"),
+					react.createElement("input", { type: "checkbox", checked: !!cfg.semanticRerank, onChange: (e) => set({ semanticRerank: e.target.checked }) })),
+				row(t("settings.semanticDedupThreshold"), t("settings.semanticDedupThresholdDesc"),
+					react.createElement("input", { type: "number", min: 0, max: 1, step: 0.05, value: cfg.semanticDedupThreshold ?? 0, onChange: (e) => set({ semanticDedupThreshold: Math.min(1, Math.max(0, Number(e.target.value))) }) })),
+				row(t("settings.autoConsolidate"), t("settings.autoConsolidateDesc"),
+					react.createElement("input", { type: "checkbox", checked: !!cfg.autoConsolidate, onChange: (e) => set({ autoConsolidate: e.target.checked }) })),
+				row(t("settings.consolidateIntervalMs"), null,
+					react.createElement("input", { type: "number", min: 0, step: 3600000, value: cfg.consolidateIntervalMs || 0, onChange: (e) => set({ consolidateIntervalMs: Number(e.target.value) }) })),
+				row(t("settings.consolidateMaxEntries"), null,
+					react.createElement("input", { type: "number", min: 1, value: cfg.consolidateMaxEntries || 0, onChange: (e) => set({ consolidateMaxEntries: Number(e.target.value) }) })),
+				row(t("settings.autoApproveAfterMs"), t("settings.autoApproveAfterMsDesc"),
+					react.createElement("input", { type: "number", min: 0, step: 86400000, value: cfg.autoApproveAfterMs || 0, onChange: (e) => set({ autoApproveAfterMs: Number(e.target.value) }) })),
 				row(t("settings.charLimit"), null,
 					react.createElement("input", { type: "number", value: cfg.charLimit || 0, onChange: (e) => set({ charLimit: Number(e.target.value) }) })),
 				react.createElement("button", { onClick: save, style: { ...btnStyle, marginTop: 10, background: "rgba(60,140,255,.2)", borderColor: "rgba(60,140,255,.4)" } }, t("panel.save")),
