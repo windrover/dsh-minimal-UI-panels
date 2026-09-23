@@ -1,2 +1,5 @@
 # macOS
 .DS_Store
+
+# dependencies (node_modules symlinks into DSH install must not be committed)
+node_modules/
