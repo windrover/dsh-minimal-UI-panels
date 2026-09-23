@@ -306,6 +306,7 @@ window.__ModuleLoader__.load({
 			const [error, setError] = react.useState(null);
 			const [usage, setUsage] = react.useState(0);
 			const [limit, setLimit] = react.useState(0);
+			const [vectorRecall, setVectorRecall] = react.useState(false); // 健康度条展示用（来自 /api/memory/settings）
 			const [editing, setEditing] = react.useState(null); // null | { id?, scope, content, tags }
 			const [importOpen, setImportOpen] = react.useState(false);
 			const [importText, setImportText] = react.useState("");
@@ -321,6 +322,7 @@ window.__ModuleLoader__.load({
 					const settings = await apiGet("/api/memory/settings");
 					setUsage(data.results.reduce((s, r) => s + (r.content?.length || 0), 0));
 					setLimit(settings.charLimit || 0);
+					setVectorRecall(!!settings.semanticVectorRecall);
 					try {
 						const pd = await apiGet("/api/memory/pending");
 						setPending(pd.items || []);
@@ -600,7 +602,7 @@ window.__ModuleLoader__.load({
 				react.createElement("span", { style: health.dupPairs > 0 ? { color: "#c93" } : undefined }, `${t("panel.healthDup")}: ${health.dupPairs}`),
 				react.createElement("span", { style: health.superseded > 0 ? { color: "#b8860b" } : undefined }, `${t("panel.healthSuperseded")}: ${health.superseded}`),
 				health.pending > 0 && react.createElement("span", { style: { color: "#da4" } }, `${t("panel.healthPending")}: ${health.pending}`),
-				react.createElement("span", { style: cfg.semanticVectorRecall ? { color: "#6c9" } : { opacity: .5 } }, `${t("panel.healthVec")}: ${cfg.semanticVectorRecall ? "on" : "off"}`),
+				react.createElement("span", { style: vectorRecall ? { color: "#6c9" } : { opacity: .5 } }, `${t("panel.healthVec")}: ${vectorRecall ? "on" : "off"}`),
 			);
 
 			const body = showSettings
