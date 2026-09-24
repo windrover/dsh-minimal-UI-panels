@@ -3,7 +3,7 @@
 > [English](./README.md) · [中文](./README.zh-CN.md)
 
 <p>
-  <a href="https://github.com/windrover/dsh-minimal-UI-panels"><img src="https://img.shields.io/badge/version-0.3.0-blue" alt="version"></a>
+  <a href="https://github.com/windrover/dsh-minimal-UI-panels"><img src="https://img.shields.io/badge/version-0.4.0-blue" alt="version"></a>
   <a href="https://github.com/windrover/dsh-minimal-UI-panels/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="license"></a>
   <a href="https://github.com/windrover/dsh-minimal-UI-panels"><img src="https://img.shields.io/badge/platform-DeepSeek%20Harness-9cf" alt="platform"></a>
   <img src="https://img.shields.io/badge/status-active-brightgreen" alt="status">
