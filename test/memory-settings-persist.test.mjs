@@ -17,9 +17,15 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import assert from 'node:assert/strict'
 
-const mod = await import('../lib/host/ltm.js')
-
+// Isolate DSH_HOME so the test never reads/writes the real
+// ~/.dsh/dsh-memory/settings.json. The plugin resolves its settings path from
+// DSH_HOME, which on macOS ignores $HOME, so $HOME alone cannot sandbox it.
+// Without this, a pre-existing real settings file leaks into the "default GET"
+// assertion and the test fails on any machine that has actually run the plugin.
 const dir = mkdtempSync(join(tmpdir(), 'ltm-settings-'))
+process.env.DSH_HOME = dir
+
+const mod = await import('../lib/host/ltm.js')
 const routes = {}
 let postBody = null
 const ctx = {
@@ -78,7 +84,7 @@ ok('POST settings does not 409 (service unmounted)', post.status !== 409)
 ok('POST settings returns 200', post.status === 200)
 
 // 3. The change is written to disk (source of truth).
-const settingsFile = join(process.env.HOME ?? require('node:os').homedir(), '.dsh', 'dsh-memory', 'settings.json')
+const settingsFile = join(process.env.DSH_HOME ?? process.env.HOME ?? require('node:os').homedir(), 'dsh-memory', 'settings.json')
 ok('settings file persisted to disk', existsSync(settingsFile))
 const saved = JSON.parse(readFileSync(settingsFile, 'utf8'))
 ok('persisted file has semanticVectorRecall=true', saved.semanticVectorRecall === true)
