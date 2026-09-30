@@ -1,6 +1,6 @@
 {
   "name": "dsh-minimal-ui-panels",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "All-in-one DeepSeek Harness UI panels: artifacts, long-term memory, terminal and notes paired two per tab as right-Sidebar tab types, each with a draggable split — one bundle, one loader row.",
   "type": "module",
   "main": "lib/index.js",
@@ -24,9 +24,11 @@
   ],
   "license": "MIT",
   "dependencies": {
-    "@deepseek-ai/dsh-home-paths": "^0.1.0-rc.8",
-    "@deepseek-ai/dsh-tools": "^0.1.0-rc.8",
     "@deepseek-ai/schemastery": "^3.18.1"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/dsh-home-paths": "^0.1.0-rc.8 || ^0.2.0-rc.1",
+    "@deepseek-ai/dsh-tools": "^0.1.0-rc.8 || ^0.2.0-rc.1"
   },
   "dsh": {
     "bundle": {
@@ -36,7 +38,6 @@
       "inject": [
         "@deepseek-ai/dsh-client-connection",
         "@deepseek-ai/dsh-client-locale",
-        "@deepseek-ai/dsh-client-runtime",
         "@deepseek-ai/dsh-client-ui-session",
         "@deepseek-ai/dsh-client-ui-sidebar-right"
       ],
