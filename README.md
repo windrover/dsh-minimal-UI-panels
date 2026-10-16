@@ -113,6 +113,7 @@ One conversation owns exactly one folder, so its products are findable from the 
 - The **8-character session id** is the stable key: an existing folder for the session is always **reused**, including folders older versions wrote as `<date>-<full-session-id>`, so nothing is forked or scattered after an upgrade.
 - A **delegated session nests** under its parent at `<parent>/subagents/<slug>-<id8>/`.
 - Nothing is **pre-created**: the folder appears when the agent first writes into it, so a question-only session leaves nothing behind.
+- The panel **opens on this conversation's folder** (the host answers `/api/artifacts/session-dir`); until that folder exists it stays on the workspace root, and a directory you picked yourself always wins.
 - `artifacts_list` with no `dir` scans **this conversation's folder** once it exists (otherwise the workspace root). The panel scans whatever directory you point it at — it never parses folder names, so any layout (including pre-existing folders) keeps listing and previewing.
 
 The host half injects the exact path as the `tool:artifacts-session-dir` prompt section; the rules live in `lib/host/artifact-paths.js` and are pinned by `test/artifacts-naming.test.mjs`.
@@ -199,6 +200,7 @@ Unchanged from the originals:
 | Method | Path | Description |
 |---|---|---|
 | POST | `/api/artifacts/scan` | Scan a directory |
+| GET | `/api/artifacts/session-dir` | This conversation's artifact folder (`?sessionId=&cwd=`), so the panel opens on it |
 | GET | `/api/artifacts/read` | Read file preview |
 | GET | `/api/artifacts/media` | Video stream (Range support) |
 | POST | `/api/terminal-notes/exec` | Run a bash command |
@@ -226,6 +228,12 @@ Unchanged from the originals:
 
   ```bash
   node test/artifacts-scroll.test.mjs
+  ```
+
+- `test/artifacts-session-default.test.mjs` renders the panel and pins what it opens on: this conversation's artifact folder when it exists, the workspace root when it does not (a scan of a missing directory is a 404, not an empty list), the same fallback when the host does not serve `/api/artifacts/session-dir` yet, and never overriding a directory the user pinned themselves:
+
+  ```bash
+  node test/artifacts-session-default.test.mjs
   ```
 
 - `test/artifacts-naming.test.mjs` pins the per-session folder layout: the local start date (with the old UTC off-by-one as an explicit counterexample), readable path-safe slugs, reuse of an existing folder including the legacy `<date>-<full-session-id>` shape, subagent nesting, the exact prompt text, and `artifacts_list` defaulting to this conversation's folder without creating one:

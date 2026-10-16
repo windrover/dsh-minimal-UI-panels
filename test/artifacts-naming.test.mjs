@@ -119,16 +119,22 @@ try {
 
   // ── 7. wiring: the section, and the tool default ──────────────────────────
   const promptSections = []
+  const registeredRoutes = new Map()
   let registeredTool
+  const LIVE_SESSION = { id: 'session-bbbbbbbb-1111-2222-3333-444444444444', header: { createdAt: START, cwd: workspace } }
   const stubCtx = {
     on: () => {},
     effect: (fn) => { try { return fn() } catch { return undefined } },
     tools: { register: (tool) => { registeredTool = tool } },
-    webServer: { register: () => {} },
+    webServer: { register: (route) => { registeredRoutes.set(route.path, route.handler) } },
     systemPrompt: { section: (section) => promptSections.push(section) },
     workspaceRegistry: { list: () => [{ path: workspace }] },
     logger: { warn: () => {}, info: () => {}, debug: () => {}, error: () => {} },
-    get: (name) => (name === 'sessionTitle' ? { get: () => ({ title: '会话标题' }) } : undefined)
+    get: (name) => {
+      if (name === 'sessionTitle') return { get: () => ({ title: '会话标题' }) }
+      if (name === 'sessions') return { get: (id) => (id === LIVE_SESSION.id ? LIVE_SESSION : undefined) }
+      return undefined
+    }
   }
   mod.apply(stubCtx, {})
 
@@ -161,6 +167,45 @@ try {
   const { existsSync } = await import('node:fs')
   assert.equal(existsSync(join(workspace, untouched.rel)), false, 'resolving a folder must not create it')
   console.log('ok  resolving a folder creates nothing (lazy creation preserved)')
+
+  // ── 9. /api/artifacts/session-dir: the answer the panel opens on ──────────
+  const route = registeredRoutes.get('/api/artifacts/session-dir')
+  assert.equal(typeof route, 'function', 'the session-dir route is registered')
+  const call = async (query, method = 'GET') => {
+    const res = { status: 0, body: null, writeHead(status) { this.status = status }, end(body) { this.body = JSON.parse(body) } }
+    await route({ method, url: `/api/artifacts/session-dir?${query}` }, res)
+    return res
+  }
+
+  const found = await call(new URLSearchParams({ sessionId: LIVE_SESSION.id, cwd: workspace }).toString())
+  assert.equal(found.status, 200)
+  assert.equal(found.body.dir, join(realpathSync(workspace), `sessions/${START_DAY}-会话标题-bbbbbbbb`), 'the panel is pointed at this conversation\'s folder')
+  assert.equal(found.body.exists, true, 'the folder that exists is reported as such')
+  // The folder was written in step 7, so even a live session is served by the
+  // reuse scan rather than a freshly computed name.
+  assert.equal(found.body.reused, true)
+
+  // A folder written before this change is found through the reuse scan, even
+  // when the session is not live any more.
+  const legacy = `2026-10-12-${BARE}`
+  const offline = await call(new URLSearchParams({ sessionId: ID, cwd: workspace }).toString())
+  assert.equal(offline.body.dir, join(realpathSync(workspace), `sessions/${legacy}`), 'an offline session still resolves to its existing folder')
+  assert.equal(offline.body.exists, true)
+  assert.equal(offline.body.reused, true)
+
+  // A conversation that has not written anything yet: the host says so instead
+  // of handing the panel a path whose scan would 404.
+  const empty = await call(new URLSearchParams({ sessionId: 'session-deadbee1-0000-0000-0000-000000000000', cwd: workspace }).toString())
+  assert.equal(empty.status, 200)
+  assert.equal(empty.body.exists, false, 'a folder that does not exist is reported as such')
+  assert.match(empty.body.dir, new RegExp(`sessions/${localDay(Date.now())}-deadbee1$`), 'the planned path is still the new-shape name')
+  assert.equal(empty.body.reused, false)
+
+  assert.equal((await call(new URLSearchParams({ sessionId: LIVE_SESSION.id }).toString())).status, 400, 'a missing cwd is rejected')
+  const outside = await call(new URLSearchParams({ sessionId: LIVE_SESSION.id, cwd: '/tmp' }).toString())
+  assert.equal(outside.status, 403, 'a cwd outside every registered workspace is refused')
+  assert.equal((await call(new URLSearchParams({ cwd: workspace }).toString(), 'POST')).status, 405, 'only GET is accepted')
+  console.log('ok  /api/artifacts/session-dir resolves, reuses and refuses correctly')
 
   console.log('\nall artifact-naming checks passed')
 } finally {

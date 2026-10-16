@@ -113,6 +113,7 @@ cd ~/.dsh/profiles/web && pnpm install
 - **会话 id 前 8 位是稳定键**：本会话已存在的目录一律**复用**，包括旧版本写下的 `<日期>-<完整会话id>`，所以升级后不会分叉、不会散落。
 - **子会话嵌套**在父会话目录下：`<父目录>/subagents/<slug>-<id8>/`。
 - 目录**不预创建**：第一次真正写入才出现，所以只问不做的会话不会留下空目录。
+- 面板**默认打开本会话的产物目录**（由宿主路由 `/api/artifacts/session-dir` 给出）；目录尚未出现时留在工作区根，而你自己选过的目录永远优先。
 - `artifacts_list` 不带 `dir` 时扫描**本会话的产物目录**（尚不存在则退回工作区根）。面板只扫你指定的目录、从不解析目录名，因此任何既有结构都照常列出与预览。
 
 宿主要注入的精确路径由 `tool:artifacts-session-dir` 提示段给出；规则本体在 `lib/host/artifact-paths.js`，由 `test/artifacts-naming.test.mjs` 钉住。
@@ -191,6 +192,7 @@ src/composite/client.js        ─┘   （必须最后合并：它读前面填�
 | 方法 | 路径 | 说明 |
 |---|---|---|
 | POST | `/api/artifacts/scan` | 扫描目录 |
+| GET | `/api/artifacts/session-dir` | 本会话的产物目录（`?sessionId=&cwd=`），面板据此默认打开它 |
 | GET | `/api/artifacts/read` | 读文件预览 |
 | GET | `/api/artifacts/media` | 视频流（支持 Range） |
 | POST | `/api/terminal-notes/exec` | 执行 bash 命令 |
@@ -218,6 +220,12 @@ src/composite/client.js        ─┘   （必须最后合并：它读前面填�
 
   ```bash
   node test/artifacts-scroll.test.mjs
+  ```
+
+- `test/artifacts-session-default.test.mjs` 真实渲染面板，钉住它打开时落在哪里：本会话已有产物目录时打开它；尚不存在时退回工作区根（扫不存在的目录会 404，而不是空列表）；宿主还没提供 `/api/artifacts/session-dir` 时同样退回；用户自己钉住的目录永远优先：
+
+  ```bash
+  node test/artifacts-session-default.test.mjs
   ```
 
 - `test/artifacts-naming.test.mjs` 钉住「一次对话一个目录」的布局：本地开始日期（并把旧的 UTC 差一天作为反例钉住）、可读且路径安全的 slug、既有目录（含旧版 `<日期>-<完整会话id>`）必须复用、子会话嵌套、提示原文，以及 `artifacts_list` 默认扫描本会话目录且不创建目录：

@@ -40,7 +40,8 @@ window.__ModuleLoader__.load({
 			"panel.auto": "自动刷新",
 			"panel.autoShort": "自动",
 			"panel.dir": "目录：",
-			"panel.currentSession": "当前会话",
+			"panel.sessionArtifacts": "本会话产物",
+			"panel.workspaceRoot": "工作区根目录",
 			"panel.files": "{count} 个文件",
 			"panel.limitReached": "已达扫描上限，结果可能不完整",
 			"panel.copy": "复制路径",
@@ -112,7 +113,8 @@ window.__ModuleLoader__.load({
 			"panel.auto": "Auto refresh",
 			"panel.autoShort": "Auto",
 			"panel.dir": "Directory:",
-			"panel.currentSession": "Current session",
+			"panel.sessionArtifacts": "Session artifacts",
+			"panel.workspaceRoot": "Workspace root",
 			"panel.files": "{count} files",
 			"panel.limitReached": "Scan limit reached; results may be incomplete",
 			"panel.copy": "Copy path",
@@ -512,7 +514,46 @@ window.__ModuleLoader__.load({
 			const listScrollTopRef = react.useRef(0);
 			const cwd = useSessions((s) => sessionId === void 0 ? void 0 : s.byId[sessionId]?.cwd);
 			const workspaces = useWorkspaces((s) => s.items);
-			const effectiveDir = dir ?? cwd ?? (workspaces.length > 0 ? workspaces[0].path : null);
+			/**
+			 * This conversation's own artifact folder, as resolved by the host:
+			 * `{ key, dir }`, where `key` names the session/cwd the answer belongs
+			 * to. Keying it is what stops a folder from the previous session being
+			 * shown while the new session's answer is still in flight — no clearing
+			 * effect, so the listing never flickers through the workspace root.
+			 */
+			const [sessionArtifacts, setSessionArtifacts] = react.useState(null);
+			const sessionKey = `${sessionId ?? ""}\u0000${cwd ?? ""}`;
+			const sessionDir = sessionArtifacts !== null && sessionArtifacts.key === sessionKey ? sessionArtifacts.dir : null;
+			// The panel opens on this conversation's artifacts, not on the workspace
+			// root: that folder is where the agent was told to write, so it is the
+			// listing the user almost always wants. The host owns the naming rule
+			// (it can see the session's title and id), so the panel asks rather than
+			// re-deriving a name — and until the folder exists there is nothing to
+			// show, so `cwd` stays the honest default. An explicit user choice
+			// (`dir`) always wins over both.
+			const effectiveDir = dir ?? sessionDir ?? cwd ?? (workspaces.length > 0 ? workspaces[0].path : null);
+			react.useEffect(() => {
+				if (dir !== null) return;
+				if (cwd === void 0 || cwd === null || cwd === "") return;
+				let cancelled = false;
+				const controller = new AbortController();
+				const query = new URLSearchParams({ cwd });
+				if (sessionId !== void 0) query.set("sessionId", sessionId);
+				fetch(`/api/artifacts/session-dir?${query.toString()}`, { signal: controller.signal })
+					.then(async (response) => response.ok ? response.json() : null)
+					.then((json) => {
+						if (cancelled) return;
+						const resolved = json !== null && json.exists === true && typeof json.dir === "string" ? json.dir : null;
+						setSessionArtifacts({ key: sessionKey, dir: resolved });
+					})
+					.catch(() => {
+						if (!cancelled) setSessionArtifacts({ key: sessionKey, dir: null });
+					});
+				return () => {
+					cancelled = true;
+					controller.abort();
+				};
+			}, [dir, cwd, sessionId, sessionKey, refreshKey]);
 			// Both effects read `effectiveDir`, so they must sit after its
 			// declaration — a dependency array is evaluated during render, and
 			// naming it earlier would be a temporal-dead-zone ReferenceError.
@@ -760,9 +801,14 @@ window.__ModuleLoader__.load({
 											setDir(event.currentTarget.value || null);
 										},
 										children: [
+											sessionDir !== null && (0, react_jsx_runtime.jsx)("option", {
+												value: sessionDir,
+												title: sessionDir,
+												children: t("panel.sessionArtifacts")
+											}),
 											cwd !== void 0 && (0, react_jsx_runtime.jsx)("option", {
 												value: cwd,
-												children: t("panel.currentSession")
+												children: t("panel.workspaceRoot")
 											}),
 											workspaces.filter((workspace) => workspace.path !== cwd).map((workspace) => (0, react_jsx_runtime.jsx)("option", {
 												value: workspace.path,
