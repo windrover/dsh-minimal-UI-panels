@@ -94,6 +94,29 @@ cd ~/.dsh/profiles/web && pnpm install
 - **`/memory`** command (host side): `/memory list|search|get|forget|export`.
 - Host-side model tools: `memory_*` (write/recall/list/forget/export/import/correct/batch/diagnose) and `artifacts_list`.
 
+### Where artifacts go
+
+One conversation owns exactly one folder, so its products are findable from the path alone:
+
+```
+<workspace>/sessions/<YYYY-MM-DD>-<title-slug>-<session-id8>/
+    README.md      index: what this conversation was about + every artifact
+    docs/          md, txt, pdf, docx, pptx
+    data/          csv, tsv, xlsx, json, yaml, sqlite
+    images/        png, jpg, webp, svg, gif
+    scripts/       py, sh, js, mjs, ts, ipynb
+    media/         mp4, mov, mp3, wav
+    misc/          anything else, plus scratch
+```
+
+- The **date is the local day the conversation started** (not the day of each write, not UTC) and the **slug is the session title**, so the folder is readable *and* stable for the session's whole life.
+- The **8-character session id** is the stable key: an existing folder for the session is always **reused**, including folders older versions wrote as `<date>-<full-session-id>`, so nothing is forked or scattered after an upgrade.
+- A **delegated session nests** under its parent at `<parent>/subagents/<slug>-<id8>/`.
+- Nothing is **pre-created**: the folder appears when the agent first writes into it, so a question-only session leaves nothing behind.
+- `artifacts_list` with no `dir` scans **this conversation's folder** once it exists (otherwise the workspace root). The panel scans whatever directory you point it at — it never parses folder names, so any layout (including pre-existing folders) keeps listing and previewing.
+
+The host half injects the exact path as the `tool:artifacts-session-dir` prompt section; the rules live in `lib/host/artifact-paths.js` and are pinned by `test/artifacts-naming.test.mjs`.
+
 ## 🏗 Architecture
 
 ```
@@ -104,6 +127,7 @@ dsh-minimal-UI-panels  (one loader row / one package)
 │       ├── lib/host/ltm.js               ← original dsh-long-term-memory (verbatim)
 │       │     └── store.js / threats.js / llm.js / automation.js
 │       ├── lib/host/artifacts.js         ← original dsh-artifacts-panel (verbatim)
+│       │     └── artifact-paths.js       ← per-session folder layout (naming, reuse, subagent nesting)
 │       └── lib/host/terminal-notes.js    ← original dsh-terminal-notes (verbatim)
 │       inject = tools, systemPrompt, commands, settings, agents,
 │                webServer, workspaceRegistry, subprocess, fs
@@ -202,6 +226,12 @@ Unchanged from the originals:
 
   ```bash
   node test/artifacts-scroll.test.mjs
+  ```
+
+- `test/artifacts-naming.test.mjs` pins the per-session folder layout: the local start date (with the old UTC off-by-one as an explicit counterexample), readable path-safe slugs, reuse of an existing folder including the legacy `<date>-<full-session-id>` shape, subagent nesting, the exact prompt text, and `artifacts_list` defaulting to this conversation's folder without creating one:
+
+  ```bash
+  node test/artifacts-naming.test.mjs
   ```
 
 - `test/terminal-exec.test.mjs` covers the host half: it applies the plugin against a mock context, captures the route registered at `/api/terminal-notes/exec` and invokes it, asserting that the spawn asks for `stdin: 'ignore'` (fd 0 on /dev/null), carries an abort signal, and that a command killed at the deadline comes back as a classified `timeout` **with the output it managed to print**:

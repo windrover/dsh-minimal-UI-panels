@@ -94,6 +94,29 @@ cd ~/.dsh/profiles/web && pnpm install
 - **`/memory`** 命令（宿主侧）：`/memory list|search|get|forget|export` 管理长期记忆。
 - 宿主侧还提供模型工具：`memory_*`（write/recall/list/forget/export/import/correct/batch/diagnose）与 `artifacts_list`。
 
+### 产物落在哪里
+
+一次对话只占一个目录，凭路径就能定位：
+
+```
+<workspace>/sessions/<YYYY-MM-DD>-<标题slug>-<会话id前8位>/
+    README.md      索引：这次对话在做什么 + 每个产物是什么
+    docs/          md、txt、pdf、docx、pptx
+    data/          csv、tsv、xlsx、json、yaml、sqlite
+    images/        png、jpg、webp、svg、gif
+    scripts/       py、sh、js、mjs、ts、ipynb
+    media/         mp4、mov、mp3、wav
+    misc/          其他，以及临时文件
+```
+
+- **日期是这次对话开始当天的本地日期**（不是每次写入的日期，也不是 UTC），**slug 是会话标题**——目录名既可读，又在整个会话期内稳定。
+- **会话 id 前 8 位是稳定键**：本会话已存在的目录一律**复用**，包括旧版本写下的 `<日期>-<完整会话id>`，所以升级后不会分叉、不会散落。
+- **子会话嵌套**在父会话目录下：`<父目录>/subagents/<slug>-<id8>/`。
+- 目录**不预创建**：第一次真正写入才出现，所以只问不做的会话不会留下空目录。
+- `artifacts_list` 不带 `dir` 时扫描**本会话的产物目录**（尚不存在则退回工作区根）。面板只扫你指定的目录、从不解析目录名，因此任何既有结构都照常列出与预览。
+
+宿主要注入的精确路径由 `tool:artifacts-session-dir` 提示段给出；规则本体在 `lib/host/artifact-paths.js`，由 `test/artifacts-naming.test.mjs` 钉住。
+
 ## 🏗 架构
 
 ```
@@ -104,6 +127,7 @@ dsh-minimal-UI-panels  (一个 loader 行 / 一个包)
 │       ├── lib/host/ltm.js              ← 原 dsh-long-term-memory（一字不改）
 │       │     └── store.js / threats.js / llm.js / automation.js
 │       ├── lib/host/artifacts.js        ← 原 dsh-artifacts-panel（一字不改）
+│       │     └── artifact-paths.js      ← 每会话产物目录布局（命名、复用、子会话嵌套）
 │       └── lib/host/terminal-notes.js   ← 原 dsh-terminal-notes（一字不改）
 │       inject = tools, systemPrompt, commands, settings, agents,
 │                webServer, workspaceRegistry, subprocess, fs
@@ -194,6 +218,12 @@ src/composite/client.js        ─┘   （必须最后合并：它读前面填�
 
   ```bash
   node test/artifacts-scroll.test.mjs
+  ```
+
+- `test/artifacts-naming.test.mjs` 钉住「一次对话一个目录」的布局：本地开始日期（并把旧的 UTC 差一天作为反例钉住）、可读且路径安全的 slug、既有目录（含旧版 `<日期>-<完整会话id>`）必须复用、子会话嵌套、提示原文，以及 `artifacts_list` 默认扫描本会话目录且不创建目录：
+
+  ```bash
+  node test/artifacts-naming.test.mjs
   ```
 
 - `test/terminal-exec.test.mjs` 是宿主侧测试：给宿主插件一个 mock ctx，抓住 `/api/terminal-notes/exec` 注册的路由并真正调用它，断言 spawn 用的是 `stdin: 'ignore'`（fd 0 指向 /dev/null）、带了 abort signal，且被执行期限终止的命令会返回分类后的 `timeout` 结果**连同它已经打印的输出**：
