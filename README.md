@@ -131,7 +131,7 @@ dsh-minimal-UI-panels  (one loader row / one package)
 │       │     └── artifact-paths.js       ← per-session folder layout (naming, reuse, subagent nesting)
 │       └── lib/host/terminal-notes.js    ← original dsh-terminal-notes (verbatim)
 │       inject = tools, systemPrompt, commands, settings, agents,
-│                webServer, workspaceRegistry, subprocess, fs
+│                webServer, workspaceRegistry, subprocess
 │
 ├── src/           ── Browser-half SOURCE 【edit panel UI here; version-controlled】
 │   ├── composite/client.js          ← the pairing container: owns EVERY right-Sidebar registration
@@ -261,7 +261,7 @@ Unchanged from the originals:
 
 ## 🔒 Notes
 
-- Notes are stored as a single JSON document (the fs service offers no unlink primitive; a single atomic JSON rewrite is more reliable).
+- Notes are stored as a single JSON document written with `node:fs` (temp file + rename), not through `ctx.fs`: since DSH 0.2.1 that service is sandboxed and its `workspace-write` policy refuses mutations outside the workspace, which made `~/.dsh/notes.json` unwritable (create/save/delete all 500). The path is fixed plugin state, not model input, and the memory half already persists the same way.
 - **The terminal is not an interactive shell**: it runs `bash -lc <the one line you typed>` and the child's stdin is `/dev/null`, so commands that *read* stdin (`bash`, `cat`, `read`, `python`, an editor) get EOF and exit instead of hanging the panel. While a command runs, a **Stop button** appears (host route `POST /api/terminal-notes/exec-cancel`, addressing the child by the `runId` the panel generated for that run). Every command also has a **120-second deadline**; past it the command is killed and the output it already printed is returned with the failure. The deadline is the host config `terminalNotes.timeoutMs`. A manual stop and the deadline are **different outcomes** (`cancelled` vs `timeout`), and both keep the output printed so far. For anything interactive or long-running, use the session's own bash tool.
 - The panels no longer draw any column width or layout of their own: docking, floating, splitting and sizing all belong to the shipped `dsh-client-ui-sidebar-right` docking kit. The only layout this package owns is the split *inside* a pairing. Upgrading dsh can no longer clobber a layout patch from this package, because there is no longer one to clobber.
 - This package's services/routes/tools are registered on the calling fiber's lifecycle; stopping or hot-reloading removes every side effect.

@@ -131,7 +131,7 @@ dsh-minimal-UI-panels  (一个 loader 行 / 一个包)
 │       │     └── artifact-paths.js      ← 每会话产物目录布局（命名、复用、子会话嵌套）
 │       └── lib/host/terminal-notes.js   ← 原 dsh-terminal-notes（一字不改）
 │       inject = tools, systemPrompt, commands, settings, agents,
-│                webServer, workspaceRegistry, subprocess, fs
+│                webServer, workspaceRegistry, subprocess
 │
 ├── src/           ── 浏览器半身源码【改面板 UI 就改这里，受版本控制】
 │   ├── composite/client.js          ← 组合容器：拥有全部右侧栏注册（2 个 tab 类型 + 可拖分隔条）
@@ -253,7 +253,7 @@ src/composite/client.js        ─┘   （必须最后合并：它读前面填�
 
 ## 🔒 注意事项
 
-- 记事本存储为单 JSON 文档（fs 服务无 unlink 原语，单文件原子重写更可靠）。
+- 记事本存储为单 JSON 文档，用 `node:fs` 写（临时文件 + rename），**不走 `ctx.fs`**：DSH 0.2.1 起该服务的后端是沙箱（`workspace-write` 只允许写工作区内路径），`~/.dsh/notes.json` 在工作区外，于是新建/保存/删除全部 500，记事本无法新建。该路径是插件自己的固定状态、不是模型给的路径，且长期记忆半身本来就用 `node:fs` 持久化。
 - **终端不是交互式 shell**：它执行 `bash -lc <你输入的那一行>`，子进程的 stdin 是 `/dev/null`（所以 `bash`、`cat`、`read`、`python` 这类**读 stdin** 的命令会立刻拿到 EOF 退出，而不是把面板挂住）。命令运行中会出现**「终止」按钮**（对应宿主路由 `POST /api/terminal-notes/exec-cancel`，用面板为每次执行生成的 `runId` 定位正在跑的子进程）。每条命令另有 **120 秒**执行期限，超时会被终止、并把已打印的输出一并返回；期限可用宿主配置 `terminalNotes.timeoutMs` 调整。**手动终止与超时是两种不同结果**（`cancelled` / `timeout`），两者都会保留已打印的输出。需要交互或长时间的构建，请用会话自带的 bash 工具。
 - 面板不再自绘任何栏宽/布局；停靠、浮动、分屏与宽度都由官方 `dsh-client-ui-sidebar-right` 的 docking kit 决定。升级 dsh 不会再冲掉本包的布局改动（因为已经没有这类改动）。
 - 本包仅动态注册的服务/路由/工具随 fiber 生命周期；停止或热更新会移除全部副作用。
