@@ -1,6 +1,6 @@
 {
   "name": "dsh-minimal-ui-panels",
-  "version": "0.4.5",
+  "version": "0.5.0",
   "description": "All-in-one DeepSeek Harness UI panels: artifacts, long-term memory, terminal and notes paired two per tab as right-Sidebar tab types, each with a draggable split — one bundle, one loader row.",
   "type": "module",
   "main": "lib/index.js",
@@ -45,6 +45,6 @@
     }
   },
   "scripts": {
-    "test": "node test/host-layering.test.mjs && node test/memory-tools.test.mjs && node scripts/run-tests.mjs"
+    "test": "node test/host-layering.test.mjs && node test/memory-tools.test.mjs && node test/memory-tier.test.mjs && node scripts/run-tests.mjs"
   }
 }
