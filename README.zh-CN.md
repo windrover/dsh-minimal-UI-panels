@@ -3,7 +3,7 @@
 > [English](./README.md) · [中文](./README.zh-CN.md)
 
 <p>
-  <a href="https://github.com/windrover/dsh-minimal-UI-panels"><img src="https://img.shields.io/badge/version-0.3.0-blue" alt="version"></a>
+  <a href="https://github.com/windrover/dsh-minimal-UI-panels"><img src="https://img.shields.io/badge/version-0.5.0-blue" alt="version"></a>
   <a href="https://github.com/windrover/dsh-minimal-UI-panels/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="license"></a>
   <a href="https://github.com/windrover/dsh-minimal-UI-panels"><img src="https://img.shields.io/badge/platform-DeepSeek%20Harness-9cf" alt="platform"></a>
   <img src="https://img.shields.io/badge/status-active-brightgreen" alt="status">
@@ -39,6 +39,8 @@
 ## 📦 安装
 
 本插件以**本地 link 依赖**挂载（与 DSH 本地插件一致）。
+
+> **需要 dsh 0.1.5 及以上（含 0.2 系列）。** 面板注册为 `@deepseek-ai/dsh-client-ui-sidebar-right` 的标签类型，该包自 0.1.5-alpha.1 才发布；更早的 0.1.x 根本没有 `rightbar`，客户端解析不到这个依赖。`peerDependencies` 里的 `^0.1.0-rc.8` 只覆盖宿主服务（`dsh-home-paths`、`dsh-tools`），**不是**真实下限。
 
 ### 1. 克隆仓库
 

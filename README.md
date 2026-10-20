@@ -3,7 +3,7 @@
 > [English](./README.md) · [中文](./README.zh-CN.md)
 
 <p>
-  <a href="https://github.com/windrover/dsh-minimal-UI-panels"><img src="https://img.shields.io/badge/version-0.4.1-blue" alt="version"></a>
+  <a href="https://github.com/windrover/dsh-minimal-UI-panels"><img src="https://img.shields.io/badge/version-0.5.0-blue" alt="version"></a>
   <a href="https://github.com/windrover/dsh-minimal-UI-panels/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="license"></a>
   <a href="https://github.com/windrover/dsh-minimal-UI-panels"><img src="https://img.shields.io/badge/platform-DeepSeek%20Harness-9cf" alt="platform"></a>
   <img src="https://img.shields.io/badge/status-active-brightgreen" alt="status">
@@ -39,6 +39,8 @@ Drag a tab to the **left or right edge of a pane** and it splits off a second pa
 ## 📦 Install
 
 This plugin mounts as a **local link dependency** (consistent with other DSH local plugins).
+
+> **Requires dsh 0.1.5 or newer, including the 0.2 series.** The panels register as tab kinds of `@deepseek-ai/dsh-client-ui-sidebar-right`, which first shipped in 0.1.5-alpha.1; earlier 0.1.x releases have no `rightbar` at all, so the client bundle cannot resolve that dependency. The `^0.1.0-rc.8` in `peerDependencies` covers only the host services (`dsh-home-paths`, `dsh-tools`) and is **not** the real floor.
 
 ### 1. Clone the repo
 
