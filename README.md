@@ -3,7 +3,7 @@
 > [English](./README.md) · [中文](./README.zh-CN.md)
 
 <p>
-  <a href="https://github.com/windrover/dsh-minimal-UI-panels"><img src="https://img.shields.io/badge/version-0.6.4-blue" alt="version"></a>
+  <a href="https://github.com/windrover/dsh-minimal-UI-panels"><img src="https://img.shields.io/badge/version-0.6.5-blue" alt="version"></a>
   <a href="https://github.com/windrover/dsh-minimal-UI-panels/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="license"></a>
   <a href="https://github.com/windrover/dsh-minimal-UI-panels"><img src="https://img.shields.io/badge/platform-DeepSeek%20Harness-9cf" alt="platform"></a>
   <img src="https://img.shields.io/badge/status-active-brightgreen" alt="status">
@@ -18,6 +18,7 @@
 
 ## 🆕 What's new
 
+- **0.6.5** — On DSH 0.2.2+, **Add to Notes** now lives in the host's own text-interaction pill: right-click a message with no selection and pick it there (the whole-message confirmation is unchanged).
 - **0.6.4** — Capturing a whole message now asks for confirmation (character count + preview); the menu states whether it will save the selection or the whole message.
 - **0.6.3** — Selecting a note no longer collapses the list; the toolbar toggle owns visibility alone.
 - **0.6.2** — Capture works on more chat surfaces (`data-chat-node-key` → `flowItem` → text selection), and the Notes toolbar gains **Add selection**.
