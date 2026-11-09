@@ -3,7 +3,7 @@
 > [English](./README.md) · [中文](./README.zh-CN.md)
 
 <p>
-  <a href="https://github.com/windrover/dsh-minimal-UI-panels"><img src="https://img.shields.io/badge/version-0.6.5-blue" alt="version"></a>
+  <a href="https://github.com/windrover/dsh-minimal-UI-panels"><img src="https://img.shields.io/badge/version-0.6.3-blue" alt="version"></a>
   <a href="https://github.com/windrover/dsh-minimal-UI-panels/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="license"></a>
   <a href="https://github.com/windrover/dsh-minimal-UI-panels"><img src="https://img.shields.io/badge/platform-DeepSeek%20Harness-9cf" alt="platform"></a>
   <img src="https://img.shields.io/badge/status-active-brightgreen" alt="status">
@@ -18,9 +18,7 @@
 
 ## 🆕 更新内容
 
-- **0.6.5** — DSH 0.2.2+ 上**添加到记事本**改为接入宿主自己的文本交互浮层：无选区右键消息即可在浮层里选择（整条消息确认逻辑不变）。
-- **0.6.4** — 收录整条消息前先弹确认框（字符数 + 预览）；菜单会写明将保存「选中内容」还是「整条消息」。
-- **0.6.3** — 点击便签不再自动收起列表，显隐只由工具栏按钮控制。
+- **0.6.3** — 记事本：点击便签不再收起列表；整条消息收录前先确认（字符数 + 预览），DSH 0.2.2+ 上的入口并入宿主的文本交互浮层；选区用工具栏「收录选区」。
 - **0.6.2** — 收录兼容更多页面结构（`data-chat-node-key` → `flowItem` → 选中文字），记事本工具栏新增**收录选区**。
 - **0.6.1** — 批准待确认记忆时先归档 superseded 记录，库满不再卡住队列；面板区分「加载失败 / 操作失败」；用量只统计 live 记录。
 - **0.6.0** — 右键对话消息 → **添加到记事本**：有选区就收录选区，否则收录整条消息。
