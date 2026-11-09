@@ -149,7 +149,7 @@ window.__ModuleLoader__.load({
 		/** Whole-message captures always confirm; long selections confirm too. */
 		const CAPTURE_CONFIRM_CHARS = 2000;
 		/** How much of the excerpt the confirmation shows (the full text is saved). */
-		const CAPTURE_PREVIEW_CHARS = 4000;
+		const CAPTURE_PREVIEW_CHARS = 1200;
 		/** Fired after a note is appended so every open Notes panel refreshes. */
 		const NOTES_CHANGED_EVENT = "dsh-minimal-ui-panels:notes-changed";
 		let captureMenu = null;
@@ -160,6 +160,36 @@ window.__ModuleLoader__.load({
 		let lastRightClickTarget = null;
 		/** Set once the host's uiConversation service owns the text interaction. */
 		let officialCapture = false;
+
+		/**
+		 * One scoped stylesheet, using the host's own design tokens where they
+		 * exist. Inline styles did not survive the host's floating-surface layout
+		 * (the action wrapped one character per line and the dialog rendered at
+		 * page scale), so the visual language is expressed here instead.
+		 */
+		const CAPTURE_CSS = `
+.dsh-notes-capture-action{corner-shape:round;background:var(--dsw-alias-button-floating-fill,rgba(255,255,255,.96));--dsw-elevation-stroke-color:var(--dsw-alias-border-l3,rgba(0,0,0,.12));box-shadow:var(--dsw-elevation-panel,0 4px 16px rgba(0,0,0,.12));color:var(--dsw-alias-label-primary,#18181b);font:var(--dsw-font-xs-13,13px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC",sans-serif);cursor:pointer;border:none;border-radius:999px;padding:5px 10px;white-space:nowrap}
+.dsh-notes-capture-overlay{position:fixed;inset:0;z-index:2147483000;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(15,23,42,.35)}
+.dsh-notes-capture-card{width:400px;max-width:calc(100vw - 32px);max-height:min(70vh,560px);display:flex;flex-direction:column;gap:8px;padding:14px;border-radius:12px;background:var(--dsw-alias-bg-popup,#fff);color:var(--dsw-alias-label-primary,#18181b);border:1px solid var(--dsw-alias-border-l2,rgba(0,0,0,.08));box-shadow:var(--dsw-elevation-panel,0 12px 32px rgba(0,0,0,.18));font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC",sans-serif;box-sizing:border-box}
+.dsh-notes-capture-card *{box-sizing:border-box}
+.dsh-notes-capture-title{font-size:14px;font-weight:600;line-height:1.4}
+.dsh-notes-capture-meta{font-size:12px;line-height:1.4;opacity:.62}
+.dsh-notes-capture-preview{max-height:200px;overflow:auto;white-space:pre-wrap;word-break:break-word;padding:8px 10px;border-radius:8px;background:var(--dsw-alias-bg-l2,#f6f7f9);border:1px solid var(--dsw-alias-border-l2,rgba(0,0,0,.06));font-size:12px;line-height:1.45}
+.dsh-notes-capture-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:2px}
+.dsh-notes-capture-btn{font:inherit;font-size:13px;line-height:1.4;padding:5px 12px;border-radius:8px;cursor:pointer;border:1px solid transparent}
+.dsh-notes-capture-btn--cancel{background:transparent;border-color:var(--dsw-alias-border-l2,rgba(0,0,0,.15));color:inherit}
+.dsh-notes-capture-btn--save{background:var(--dsw-alias-button-primary-fill,#2563eb);color:var(--dsw-alias-label-on-primary,#fff);border-color:transparent}
+`.trim();
+
+		/** Install the scoped sheet once; a duplicate call is a no-op. */
+		function ensureCaptureStyles() {
+			if (typeof document === "undefined") return;
+			if (document.querySelector("style[data-notes-capture]") !== null) return;
+			const tag = document.createElement("style");
+			tag.dataset.notesCapture = "";
+			tag.textContent = CAPTURE_CSS;
+			document.head.appendChild(tag);
+		}
 
 		/** Plain-text copy of one chat node, skipping buttons/icons and keeping block breaks. */
 		function readableTextOf(node) {
@@ -301,18 +331,7 @@ window.__ModuleLoader__.load({
 		function NotesCaptureAction({ dismiss, t }) {
 			return React.createElement("button", {
 				type: "button",
-				style: {
-					cornerShape: "round",
-					background: "var(--dsw-alias-button-floating-fill, rgba(255,255,255,.96))",
-					color: "var(--dsw-alias-label-primary, #18181b)",
-					border: "1px solid var(--dsw-alias-border-l3, rgba(0,0,0,.12))",
-					borderRadius: 999,
-					padding: "5px 10px",
-					font: "inherit",
-					fontSize: 13,
-					cursor: "pointer",
-					boxShadow: "0 4px 16px rgba(0,0,0,.12)",
-				},
+				className: "dsh-notes-capture-action",
 				onPointerDown: (event) => event.preventDefault(),
 				onClick: () => {
 					const text = takePendingWholeMessage();
@@ -374,45 +393,33 @@ window.__ModuleLoader__.load({
 			const overlay = document.createElement("div");
 			overlay.setAttribute("role", "dialog");
 			overlay.setAttribute("aria-modal", "true");
-			overlay.style.cssText = [
-				"position:fixed", "inset:0", "zIndex:2147483000",
-				"background:rgba(15,23,42,.38)", "display:flex",
-				"alignItems:center", "justifyContent:center", "padding:24px",
-				"fontFamily:inherit", "fontSize:13px", "color:#18181b",
-			].join(";");
+			overlay.className = "dsh-notes-capture-overlay";
 			const card = document.createElement("div");
-			card.style.cssText = [
-				"width:min(540px,100%)", "maxHeight:80vh", "display:flex",
-				"flexDirection:column", "gap:10px", "background:#fff",
-				"borderRadius:12px", "padding:16px", "boxShadow:0 24px 64px rgba(0,0,0,.28)",
-			].join(";");
+			card.className = "dsh-notes-capture-card";
 			const title = document.createElement("div");
+			title.className = "dsh-notes-capture-title";
 			title.textContent = t("capture.confirmTitle");
-			title.style.cssText = "font-size:15px;font-weight:600;";
 			const meta = document.createElement("div");
+			meta.className = "dsh-notes-capture-meta";
 			meta.textContent = `${source === "whole" ? t("capture.confirmWhole") : t("capture.confirmSelection")} · ${t("capture.confirmChars", { count: text.length })}`;
-			meta.style.cssText = "font-size:12px;opacity:.65;";
 			const previewLabel = document.createElement("div");
+			previewLabel.className = "dsh-notes-capture-meta";
 			previewLabel.textContent = t("capture.confirmPreview");
-			previewLabel.style.cssText = "font-size:12px;opacity:.65;margin-top:2px;";
 			const preview = document.createElement("div");
-			preview.textContent = text.length > CAPTURE_PREVIEW_CHARS ? `${text.slice(0, CAPTURE_PREVIEW_CHARS)}\n…` : text;
-			preview.style.cssText = [
-				"white-space:pre-wrap", "wordBreak:break-word", "overflow:auto",
-				"maxHeight:40vh", "minHeight:64px", "padding:10px", "borderRadius:8px",
-				"background:#f6f7f9", "border:1px solid rgba(0,0,0,.08)",
-				"font:inherit", "fontSize:12.5px", "lineHeight:1.5",
-			].join(";");
+			preview.className = "dsh-notes-capture-preview";
+			preview.textContent = text.length > CAPTURE_PREVIEW_CHARS
+				? `${text.slice(0, CAPTURE_PREVIEW_CHARS)}\n… (${t("capture.confirmChars", { count: text.length })})`
+				: text;
 			const actions = document.createElement("div");
-			actions.style.cssText = "display:flex;justify-content:flex-end;gap:8px;margin-top:2px;";
+			actions.className = "dsh-notes-capture-actions";
 			const cancel = document.createElement("button");
 			cancel.type = "button";
+			cancel.className = "dsh-notes-capture-btn dsh-notes-capture-btn--cancel";
 			cancel.textContent = t("capture.cancel");
-			cancel.style.cssText = "padding:6px 12px;borderRadius:7px;border:1px solid rgba(0,0,0,.15);background:#fff;color:inherit;font:inherit;cursor:pointer;";
 			const save = document.createElement("button");
 			save.type = "button";
+			save.className = "dsh-notes-capture-btn dsh-notes-capture-btn--save";
 			save.textContent = t("capture.confirmSave");
-			save.style.cssText = "padding:6px 12px;borderRadius:7px;border:0;background:#2563eb;color:#fff;font:inherit;cursor:pointer;";
 			cancel.addEventListener("click", () => closeCaptureConfirm());
 			save.addEventListener("click", () => { closeCaptureConfirm(); void appendConversationNote(text); });
 			overlay.addEventListener("click", (event) => { if (event.target === overlay) closeCaptureConfirm(); });
@@ -895,6 +902,7 @@ window.__ModuleLoader__.load({
 		function apply(ctx) {
 			activeLocale = undefined;
 			ctx.effect(() => ctx.locale.register(NS, { zh, en }), "terminal-notes: dictionaries");
+			ctx.effect(() => ensureCaptureStyles(), "terminal-notes: capture styles");
 			ctx.effect(() => installRightClickTracker(), "terminal-notes: right-click tracker");
 			const conversation = typeof ctx.get === "function" ? ctx.get("uiConversation") : undefined;
 			if (registerOfficialCapture(conversation, ctx)) {
