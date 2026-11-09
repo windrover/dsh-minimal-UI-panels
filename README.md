@@ -22,9 +22,9 @@
 |---|---|
 | **Paired right-Sidebar tab types** | One tab type = **one pair of panels**, stacked vertically with a draggable divider between them (the split is remembered per pairing; double-click the divider for 50/50). Docking, floating and splitting come from the shipped docking kit, so **two panes side by side show all four panels**. The way in is the strip's add control → the guide page |
 | **Artifacts panel** | Scans workspace artifact files, groups/sorts by type/date/size/line count; syntax-highlighted code/config/data previews; inline base64 image previews (4 MiB cap); mp4/m4v/webm/ogv video streaming (Range requests) |
-| **Memory panel** | View/add/search/edit memory across three scopes (user/global/workspace); tag grouping; content highlighting |
+| **Memory panel** | View/add/search/edit memory across three scopes (user/global/workspace); tag grouping; content highlighting; write-approval queue and settings card; compression archives removed records instead of deleting them |
 | **Terminal panel** | A dark-themed bash command runner (`bash -lc`), output collected and returned; common-command hints stay pinned below |
-| **Notes panel** | Apple-Notes-style multi-note scratchpad: sidebar list + editor, create/delete, autosave (600 ms debounce), auto-title from the first line, stored at `~/.dsh/notes.json` |
+| **Notes panel** | Apple-Notes-style multi-note scratchpad: sidebar list + editor, create/delete, autosave (600 ms debounce), auto-title from the first line, stored at `~/.dsh/notes.json`; **right-click any conversation message → 添加到记事本** (selected text if any, else the whole message) |
 
 ## 📸 Screenshots
 
@@ -92,9 +92,21 @@ cd ~/.dsh/profiles/web && pnpm install
 - Open a session → the right Sidebar (the expand button in the conversation header) → the strip's add control → the **guide page** → pick **Artifacts + Terminal** or **Memory + Notes**.
 - **All four at once**: drag a tab to the **left or right edge of a pane** to split off a second pane, then open one pairing in each; adjust the split inside a pairing with the divider between its halves (double-click it for 50/50). Widen the Sidebar when the columns feel tight.
 - **Terminal**: type a command and press Enter (`bash -lc`); output shows in the lower half; common-command hints stay pinned.
-- **Notes**: click **New** to create an entry; drag the sidebar divider to resize; clicking a title auto-hides the list to focus the editor; the toolbar toggle shows/hides the list manually.
-- **`/memory`** command (host side): `/memory list|search|get|forget|export`.
+- **Notes**: click **New** to create an entry; drag the sidebar divider to resize; clicking a title keeps the list open (so you can click through notes); the toolbar toggle shows/hides the list manually.
+- **Capture a message into Notes**: right-click a user or assistant message in the conversation → **添加到记事本 / Add to Notes**. If you selected text inside the message, the selection is captured; otherwise the whole message (UI buttons/icons excluded). The note is created immediately; an open Notes panel refreshes its list without touching the note you are editing. The menu also offers **复制 / Copy**.
+- If a chat surface does not expose its message-node attribute, the same menu still appears for **any text selection inside the conversation**, and a row that carries a `flowItem` class is captured as a whole. As a guaranteed entry point, the Notes toolbar has **收录选区 / Add selection**, which appends the current selection from anywhere in the app.
+- **`/memory`** command (host side): `/memory list|search|get|forget|export|stats`.
 - Host-side model tools: `memory_*` (write/recall/list/forget/export/import/correct/batch/diagnose) and `artifacts_list`.
+
+### Memory files, dedup & stats
+
+- **Files**: `~/.dsh/dsh-memory/{user,global}.jsonl` (plus `user-archive.jsonl` / `global-archive.jsonl`), workspace `<cwd>/.dsh/memory.jsonl` (plus `memory-archive.jsonl`), pending queue `.dsh/memory-pending.jsonl`, usage log `~/.dsh/dsh-memory/usage.jsonl`.
+- **Archive, not delete.** When the character budget forces compression (or an LLM rewrite / consolidation replaces entries), removed records are first appended to `<store>-archive.jsonl` with `archivedAt` and `archiveReason`. If the archive cannot be written, the deletion is aborted — memory stays over budget rather than silently losing facts. A dropped entry can be restored by importing that line as a v1 bundle.
+- **Approval frees space first.** Approving a pending write on a store at its character cap archives superseded records (`archiveReason: "superseded_cleanup"`) before the write, so a corrected scope cannot wedge the queue at `usage == limit`. If that still is not enough, the write is refused with the usage numbers.
+- **One de-duplication rule.** `memory_write` returns `status: "existing"` when the same content is already stored; a near-duplicate write is stored with a `warning` pointing at `memory_correct`. The pending-approve path and the 7-day auto-approve flush share the same classifier (`lib/host/ltm/dedup.js`).
+- **autoSummarize** reads both `session.snapshotEvents()` (DSH 0.2.x) and the legacy `session.events`, and only distils human prompts (`source.kind === "user"`) — injected runtime-context snapshots are never fed back into memory.
+- **Per-prompt recall (opt-in)** — `promptRecall: true` (cordis config, or `long-term-memory.promptRecall` in `settings.yaml`) runs a local BM25 search with each new prompt and appends the top hits as a `form: "recall"` user message (`promptRecallLimit` 3, `promptRecallMaxChars` 600). Same text is never appended twice: the check reads the session history, so a fork or restart cannot stack copies. Default off — it trades tokens for relevance and can surface an irrelevant match.
+- **Usage** is best-effort: recall/write/inject/summarize events land in `usage.jsonl` (rotates at 2 MB), and `/memory stats` / `memory_diagnose` aggregate the last 7 days, including whether the last autoSummarize run succeeded.
 
 ### Where artifacts go
 
@@ -208,6 +220,7 @@ Unchanged from the originals:
 | POST | `/api/terminal-notes/exec` | Run a bash command |
 | GET/POST | `/api/terminal-notes/notes` | List / create notes |
 | GET/POST | `/api/terminal-notes/note` | Read / save one note |
+| POST | `/api/terminal-notes/note-append` | Append a captured conversation excerpt as a new note (atomic create+fill) |
 | POST | `/api/terminal-notes/note-delete` | Delete a note |
 
 ## 🛠 Development & verification
@@ -259,7 +272,7 @@ Unchanged from the originals:
 
   The script extracts each factory body from `src/{composite,artifacts,long-term-memory,terminal-notes}/client.js`, rewrites the react / `react_jsx_runtime` bindings, strips inner `exports.` statements, and passes one shared `panels` registry into every fragment as its third argument (the panel fragments write, `composite` reads). **`composite` must be merged last**, or the registry is empty. **A change made directly in `lib/client.js` is lost on the next run** — the script prints a `would change +N/-M` warning before overwriting, and `--check` never writes at all.
 
-- Data locations: long-term memory `~/.dsh/dsh-memory/{global,user}.jsonl`, workspace `.dsh/memory.jsonl`; notes `~/.dsh/notes.json`.
+- Data locations: long-term memory `~/.dsh/dsh-memory/{global,user}.jsonl` (+ `*-archive.jsonl`), workspace `.dsh/memory.jsonl` (+ `memory-archive.jsonl`), usage `~/.dsh/dsh-memory/usage.jsonl`; notes `~/.dsh/notes.json`.
 
 ## 🔒 Notes
 

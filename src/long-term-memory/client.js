@@ -35,6 +35,8 @@ window.__ModuleLoader__.load({
 			"panel.close": "关闭长期记忆",
 			"panel.loading": "加载中…",
 			"panel.error": "加载失败：{message}",
+			"panel.actionError": "操作失败：{message}",
+			"panel.usageAll": "{used} 字符（合计）",
 			"panel.empty": "还没有记忆",
 			"panel.add": "新增记忆",
 			"panel.save": "保存",
@@ -112,6 +114,8 @@ window.__ModuleLoader__.load({
 			"panel.close": "Close long-term memory",
 			"panel.loading": "Loading…",
 			"panel.error": "Failed to load: {message}",
+			"panel.actionError": "Action failed: {message}",
+			"panel.usageAll": "{used} chars (all scopes)",
 			"panel.empty": "No memories yet",
 			"panel.add": "Add memory",
 			"panel.save": "Save",
@@ -330,7 +334,7 @@ window.__ModuleLoader__.load({
 					const data = await apiGet(`/api/memory/list?scope=${scopeFilter}`);
 					setRecords(data.results || []);
 					const settings = await apiGet("/api/memory/settings");
-					setUsage(data.results.reduce((s, r) => s + (r.content?.length || 0), 0));
+					setUsage(data.results.filter((r) => r.superseded !== true).reduce((s, r) => s + (r.content?.length || 0), 0));
 					setLimit(settings.charLimit || 0);
 					setVectorRecall(!!settings.semanticVectorRecall);
 					try {
@@ -339,7 +343,7 @@ window.__ModuleLoader__.load({
 					} catch { /* pending 路由不可用时忽略 */ }
 					setError(null);
 				} catch (e) {
-					setError(String(e.message || e));
+					setError({ message: String(e.message || e), action: false });
 				} finally {
 					setLoading(false);
 				}
@@ -356,7 +360,7 @@ window.__ModuleLoader__.load({
 					setRecords(data.results || []);
 					setError(null);
 				} catch (e) {
-					setError(String(e.message || e));
+					setError({ message: String(e.message || e), action: true });
 				} finally {
 					setLoading(false);
 				}
@@ -376,7 +380,7 @@ window.__ModuleLoader__.load({
 					setTimeout(() => setNotice(null), 1500);
 					await load();
 				} catch (e) {
-					setError(String(e.message || e));
+					setError({ message: String(e.message || e), action: true });
 				}
 			}, [editing, load]);
 
@@ -385,7 +389,7 @@ window.__ModuleLoader__.load({
 					await apiGet(`/api/memory/delete?id=${encodeURIComponent(id)}`);
 					await load();
 				} catch (e) {
-					setError(String(e.message || e));
+					setError({ message: String(e.message || e), action: true });
 				}
 			}, [load]);
 
@@ -416,7 +420,7 @@ window.__ModuleLoader__.load({
 					setNotice("exported");
 					setTimeout(() => setNotice(null), 1500);
 				} catch (e) {
-					setError(String(e.message || e));
+					setError({ message: String(e.message || e), action: true });
 				}
 			}, [exportFormat]);
 
@@ -429,7 +433,7 @@ window.__ModuleLoader__.load({
 					setTimeout(() => setNotice(null), 2000);
 					await load();
 				} catch (e) {
-					setError(String(e.message || e));
+					setError({ message: String(e.message || e), action: true });
 				}
 			}, [importText, load]);
 
@@ -439,7 +443,7 @@ window.__ModuleLoader__.load({
 					await apiPost("/api/memory/pending", { id, action });
 					await load();
 				} catch (e) {
-					setError(String(e.message || e));
+					setError({ message: String(e.message || e), action: true });
 				}
 			}, [load]);
 
@@ -581,7 +585,7 @@ window.__ModuleLoader__.load({
 				react.createElement("button", { onClick: () => setEditing({ scope: "global", content: "", tags: "" }), style: { ...btnStyle, background: "rgba(60,140,255,.2)", borderColor: "rgba(60,140,255,.4)" } }, t("panel.add")),
 				react.createElement("button", { onClick: () => setShowSettings(!showSettings), style: { ...btnStyle, background: showSettings ? "rgba(60,200,120,.2)" : undefined } }, t("panel.settings")),
 				react.createElement("button", { onClick: () => setShowPending(!showPending), style: { ...btnStyle, background: showPending ? "rgba(60,200,120,.2)" : pending.length ? "rgba(220,160,40,.25)" : undefined } }, `${t("panel.pending")}${pending.length ? ` (${pending.length})` : ""}`),
-				usage > 0 && react.createElement("span", { style: { fontSize: 11, opacity: .6, marginLeft: "auto" } }, t("panel.usage", { used: usage, limit })),
+				usage > 0 && react.createElement("span", { style: { fontSize: 11, opacity: .6, marginLeft: "auto" } }, scopeFilter === "all" ? t("panel.usageAll", { used: usage }) : t("panel.usage", { used: usage, limit })),
 			);
 
 			// 待确认队列视图（与列表互斥展示）。
@@ -608,7 +612,7 @@ window.__ModuleLoader__.load({
 			// 健康度条：有效记忆 / 字符占用 / 近重复 / 已更正 / 待确认。
 			const healthStrip = react.createElement("div", { style: { display: "flex", gap: 10, flexWrap: "wrap", fontSize: 11, opacity: .75, marginBottom: 8 } },
 				react.createElement("span", null, `${t("panel.healthLive")}: ${health.live}`),
-				react.createElement("span", null, `${t("panel.healthUsage")}: ${health.usage}/${health.limit || "?"}`),
+				react.createElement("span", null, `${t("panel.healthUsage")}: ${scopeFilter === "all" ? health.usage : `${health.usage}/${health.limit || "?"}`}`),
 				react.createElement("span", { style: health.dupPairs > 0 ? { color: "#c93" } : undefined }, `${t("panel.healthDup")}: ${health.dupPairs}`),
 				react.createElement("span", { style: health.superseded > 0 ? { color: "#b8860b" } : undefined }, `${t("panel.healthSuperseded")}: ${health.superseded}`),
 				health.pending > 0 && react.createElement("span", { style: { color: "#da4" } }, `${t("panel.healthPending")}: ${health.pending}`),
@@ -631,7 +635,7 @@ window.__ModuleLoader__.load({
 					typeof closeDetails === "function" && react.createElement("button", { onClick: closeDetails, style: { ...btnStyle, padding: "2px 8px" }, title: t("panel.close") }, "✕"),
 				),
 				notice && react.createElement("div", { style: { color: "#3a9" } }, notice),
-				error && react.createElement("div", { style: { color: "#c33", marginBottom: 6 } }, t("panel.error", { message: error })),
+				error && react.createElement("div", { style: { color: "#c33", marginBottom: 6 } }, t(error.action ? "panel.actionError" : "panel.error", { message: error.message })),
 				filterRow,
 				toolbar,
 				body,

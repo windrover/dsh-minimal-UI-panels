@@ -40,6 +40,12 @@ window.__ModuleLoader__.load({
 			"notes.untitled": "未命名",
 			"notes.hideList": "隐藏列表",
 			"notes.showList": "显示列表",
+			"notes.captureSelection": "收录选区",
+			"capture.add": "添加到记事本",
+			"capture.copy": "复制",
+			"capture.added": "已添加到记事本",
+			"capture.failed": "添加失败",
+			"capture.empty": "没有可添加的内容",
 			"terminal.title": "终端",
 			"tab.terminalDescription": "在会话工作目录执行 shell 命令",
 			"terminal.hintsTitle": "常用命令：",
@@ -65,6 +71,12 @@ window.__ModuleLoader__.load({
 			"notes.untitled": "Untitled",
 			"notes.hideList": "Hide list",
 			"notes.showList": "Show list",
+			"notes.captureSelection": "Add selection",
+			"capture.add": "Add to Notes",
+			"capture.copy": "Copy",
+			"capture.added": "Added to Notes",
+			"capture.failed": "Could not add to Notes",
+			"capture.empty": "Nothing to add",
 			"terminal.title": "Terminal",
 			"tab.terminalDescription": "Run shell commands in the session workspace",
 			"terminal.hintsTitle": "Common commands:",
@@ -103,6 +115,222 @@ window.__ModuleLoader__.load({
 			border: "1px solid rgba(128,128,128,.4)", borderRadius: 6,
 			background: "rgba(128,128,128,.15)", color: "inherit",
 		};
+
+		// ---- conversation → notes capture (right-click a message) ------------
+		/**
+		 * Every message row in the conversation is wrapped in an element carrying
+		 * `data-chat-node-key` (the core chat UI's own attribute), so capture does
+		 * not need a private slot or a fragile CSS-module class name. Only the
+		 * three node kinds that hold conversation text are eligible: the user
+		 * bubble, a steering message, and one assistant step. Footers, tool cards
+		 * and turn notices are deliberately excluded.
+		 */
+		const CAPTURE_NODE_KEYS = new Set(["user", "steering", "assistant-step"]);
+		/** Fired after a note is appended so every open Notes panel refreshes. */
+		const NOTES_CHANGED_EVENT = "dsh-minimal-ui-panels:notes-changed";
+		let captureMenu = null;
+
+		/** Plain-text copy of one chat node, skipping buttons/icons and keeping block breaks. */
+		function readableTextOf(node) {
+			let out = "";
+			const walk = (parent) => {
+				for (const child of parent.childNodes) {
+					if (child.nodeType === 3) { out += child.nodeValue; continue; }
+					if (child.nodeType !== 1) continue;
+					if (child.matches("button, [role='button'], svg, [aria-hidden='true']")) continue;
+					if (child.tagName === "BR") { out += "\n"; continue; }
+					const block = /^(DIV|P|LI|UL|OL|H[1-6]|PRE|BLOCKQUOTE|TABLE|TR|SECTION)$/.test(child.tagName);
+					if (block && out !== "" && !out.endsWith("\n")) out += "\n";
+					walk(child);
+					if (block && !out.endsWith("\n")) out += "\n";
+				}
+			};
+			walk(node);
+			return out.replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
+		}
+
+		/** The selected text when the selection sits inside `node`, else "". */
+		function selectedTextWithin(node) {
+			try {
+				const selection = window.getSelection();
+				if (!selection || selection.rangeCount === 0 || selection.isCollapsed) return "";
+				if (!node.contains(selection.anchorNode) || !node.contains(selection.focusNode)) return "";
+				return selection.toString().trim();
+			} catch {
+				return "";
+			}
+		}
+
+		function closeCaptureMenu() {
+			if (captureMenu === null) return;
+			if (typeof captureMenu._cleanup === "function") captureMenu._cleanup();
+			captureMenu.remove();
+			captureMenu = null;
+		}
+
+		function showCaptureToast(message) {
+			const toast = document.createElement("div");
+			toast.textContent = message;
+			toast.setAttribute("role", "status");
+			toast.style.cssText = [
+				"position:fixed", "left:50%", "bottom:32px", "transform:translateX(-50%)",
+				"padding:8px 14px", "borderRadius:8px", "zIndex:2147483000",
+				"background:rgba(24,24,27,.92)", "color:#fff", "fontSize:12.5px",
+				"fontFamily:inherit", "pointerEvents:none", "opacity:1",
+				"transition:opacity .3s ease", "boxShadow:0 6px 24px rgba(0,0,0,.25)",
+			].join(";");
+			document.body.appendChild(toast);
+			setTimeout(() => { toast.style.opacity = "0"; }, 1400);
+			setTimeout(() => toast.remove(), 1800);
+		}
+
+		/** POST the excerpt; falls back to create+save on a host without the route. */
+		async function appendConversationNote(text) {
+			const clean = String(text ?? "").trim();
+			if (clean === "") { showCaptureToast(t("capture.empty")); return; }
+			try {
+				const res = await fetch("/api/terminal-notes/note-append", {
+					method: "POST",
+					headers: { "content-type": "application/json" },
+					body: JSON.stringify({ text: clean }),
+				});
+				let data;
+				if (res.status === 404) {
+					// An older host process predates the atomic route (the 404 body is
+					// HTML, not JSON): two calls still capture the text, just without
+					// create+fill atomicity.
+					const created = await fetch("/api/terminal-notes/notes", { method: "POST" }).then((r) => r.json());
+					if (!created.ok) throw new Error(created.error || "create failed");
+					data = await fetch("/api/terminal-notes/note", {
+						method: "POST",
+						headers: { "content-type": "application/json" },
+						body: JSON.stringify({ id: created.id, text: clean }),
+					}).then((r) => r.json());
+				} else {
+					data = await res.json();
+				}
+				if (!data.ok) throw new Error(data.error || "append failed");
+				window.dispatchEvent(new CustomEvent(NOTES_CHANGED_EVENT));
+				showCaptureToast(t("capture.added"));
+			} catch {
+				showCaptureToast(t("capture.failed"));
+			}
+		}
+
+		/** Menu at the cursor: add the excerpt, plus copy as a courtesy. */
+		function openCaptureMenu(x, y, node, forcedText) {
+			closeCaptureMenu();
+			const selected = forcedText !== undefined ? forcedText : (node === null ? "" : selectedTextWithin(node));
+			const payload = selected !== "" ? selected : (node === null ? "" : readableTextOf(node));
+			if (payload === "") return;
+			console.info("[notes-capture] menu", payload.length);
+			const menu = document.createElement("div");
+			menu.setAttribute("role", "menu");
+			menu.style.cssText = [
+				"position:fixed", "zIndex:2147483000", "minWidth:168px",
+				"padding:4px", "borderRadius:8px", "border:1px solid rgba(0,0,0,.12)",
+				"background:#fff", "color:#18181b", "fontSize:13px", "fontFamily:inherit",
+				"boxShadow:0 8px 28px rgba(0,0,0,.18)",
+			].join(";");
+			const item = (label, onClick) => {
+				const button = document.createElement("button");
+				button.type = "button";
+				button.setAttribute("role", "menuitem");
+				button.textContent = label;
+				button.style.cssText = [
+					"display:block", "width:100%", "textAlign:left", "padding:6px 10px",
+					"border:0", "borderRadius:6px", "background:transparent", "color:inherit",
+					"font:inherit", "cursor:pointer",
+				].join(";");
+				button.addEventListener("mouseenter", () => { button.style.background = "rgba(0,0,0,.06)"; });
+				button.addEventListener("mouseleave", () => { button.style.background = "transparent"; });
+				button.addEventListener("click", (event) => {
+					event.preventDefault();
+					event.stopPropagation();
+					closeCaptureMenu();
+					onClick();
+				});
+				menu.appendChild(button);
+			};
+			item(t("capture.add"), () => { void appendConversationNote(payload); });
+			item(t("capture.copy"), () => {
+				try { void navigator.clipboard?.writeText(payload); } catch { /* clipboard unavailable */ }
+			});
+			document.body.appendChild(menu);
+			const rect = menu.getBoundingClientRect();
+			menu.style.left = `${Math.max(8, Math.min(x, window.innerWidth - rect.width - 8))}px`;
+			menu.style.top = `${Math.max(8, Math.min(y, window.innerHeight - rect.height - 8))}px`;
+			const onPointerDown = (event) => { if (!menu.contains(event.target)) closeCaptureMenu(); };
+			const onKeyDown = (event) => { if (event.key === "Escape") closeCaptureMenu(); };
+			const onDismiss = () => closeCaptureMenu();
+			setTimeout(() => {
+				document.addEventListener("pointerdown", onPointerDown, true);
+				document.addEventListener("keydown", onKeyDown, true);
+				window.addEventListener("scroll", onDismiss, true);
+				window.addEventListener("resize", onDismiss);
+			}, 0);
+			menu._cleanup = () => {
+				document.removeEventListener("pointerdown", onPointerDown, true);
+				document.removeEventListener("keydown", onKeyDown, true);
+				window.removeEventListener("scroll", onDismiss, true);
+				window.removeEventListener("resize", onDismiss);
+			};
+			captureMenu = menu;
+		}
+
+		/** The chat container's own attributes, used when a node key is unavailable. */
+		const CHAT_AREA_SELECTOR = "[data-chat-flow], [data-chat-turn], [data-chat-node-key]";
+
+		/**
+		 * Install the contextmenu handler on `window` in the capture phase, so a
+		 * later handler on an inner container cannot stop it first. Disposal
+		 * removes the listener and any open menu.
+		 */
+		function installConversationCapture() {
+			// The contract test loads this bundle in a bare VM with no DOM; the
+			// capture menu is browser-only and must not block registration there.
+			if (typeof document === "undefined") return () => {};
+			const onContextMenu = (event) => {
+				const target = event.target;
+				if (!(target instanceof Element)) return;
+				// Inputs keep their native menu (paste, spell-check, emoji).
+				if (target.closest("input, textarea, [contenteditable='true'], [role='textbox']") !== null) return;
+				const node = target.closest("[data-chat-node-key]");
+				const inChat = node !== null || target.closest(CHAT_AREA_SELECTOR) !== null;
+				const selection = window.getSelection === undefined ? null : window.getSelection();
+				const selected = selection !== null && !selection.isCollapsed ? selection.toString().trim() : "";
+				if (node !== null && CAPTURE_NODE_KEYS.has(node.getAttribute("data-chat-node-key"))) {
+					if (readableTextOf(node) === "") return;
+					event.preventDefault();
+					openCaptureMenu(event.clientX, event.clientY, node);
+					return;
+				}
+				// Some surfaces render a row without a node key. A CSS-module class
+				// keeps its local name in the scoped output, so "flowItem" still
+				// identifies the row; readableTextOf strips the action chrome.
+				const row = node === null ? target.closest('[class*="flowItem"]') : null;
+				if (row !== null) {
+					const text = readableTextOf(row);
+					if (text !== "") {
+						event.preventDefault();
+						openCaptureMenu(event.clientX, event.clientY, row);
+						return;
+					}
+				}
+				// Fallback for a chat surface whose node attribute is missing or
+				// renamed: with a selection inside the conversation, capture it.
+				if (inChat && selected !== "") {
+					event.preventDefault();
+					openCaptureMenu(event.clientX, event.clientY, null, selected);
+				}
+			};
+			window.addEventListener("contextmenu", onContextMenu, true);
+			console.info("[notes-capture] installed");
+			return () => {
+				window.removeEventListener("contextmenu", onContextMenu, true);
+				closeCaptureMenu();
+			};
+		}
 
 		// ---- terminal panel ---------------------------------------------------
 		// Styled as a small dark terminal: dark background, monospace text.
@@ -242,8 +470,9 @@ window.__ModuleLoader__.load({
 			const [text, setText] = React.useState("");
 			const [status, setStatus] = React.useState("");
 			const [loading, setLoading] = React.useState(true);
-			// 2.1/2.3: list visibility — default shown; after opening a note or
-			// creating one it collapses so the content gets the full width.
+			// List visibility is user-controlled: shown by default, toggled only by
+			// the toolbar button. Selecting a note must NOT collapse it — clicking
+			// through several notes is the common case.
 			const [showList, setShowList] = React.useState(true);
 			// 2.2: list width — narrower default (120px), user-draggable.
 			const [listWidth, setListWidth] = React.useState(120);
@@ -264,10 +493,8 @@ window.__ModuleLoader__.load({
 					}
 				} catch { /* ignore */ }
 			};
-			const select = async (id, opts) => {
+			const select = async (id) => {
 				setActiveId(id);
-				// 2.1: opening a note hides the list (focus the content).
-				if (!opts || opts.hideList !== false) setShowList(false);
 				try {
 					const res = await fetch("/api/terminal-notes/note?id=" + encodeURIComponent(id));
 					const data = await res.json();
@@ -281,6 +508,19 @@ window.__ModuleLoader__.load({
 				refreshList();
 				setLoading(false);
 				// eslint-disable-next-line react-hooks/exhaustive-deps
+			}, []);
+			// A message captured from the conversation becomes a new note elsewhere
+			// in the app; only the list needs refreshing, never the open note.
+			React.useEffect(() => {
+				const onNotesChanged = async () => {
+					try {
+						const res = await fetch("/api/terminal-notes/notes");
+						const data = await res.json();
+						if (data.ok) setNotes(data.notes || []);
+					} catch { /* ignore */ }
+				};
+				window.addEventListener(NOTES_CHANGED_EVENT, onNotesChanged);
+				return () => window.removeEventListener(NOTES_CHANGED_EVENT, onNotesChanged);
 			}, []);
 
 			const save = async (value) => {
@@ -316,6 +556,17 @@ window.__ModuleLoader__.load({
 						setStatus(t("notes.saved"));
 					}
 				} catch { /* ignore */ }
+			};
+			/** A visible entry point that does not depend on the chat DOM. */
+			const captureSelection = () => {
+				const selection = window.getSelection === undefined ? null : window.getSelection();
+				const text = selection === null ? "" : selection.toString().trim();
+				if (text === "") {
+					setStatus(t("capture.empty"));
+					setTimeout(() => setStatus(""), 1500);
+					return;
+				}
+				void appendConversationNote(text);
 			};
 			const deleteNote = async () => {
 				if (!activeId) return;
@@ -377,6 +628,7 @@ window.__ModuleLoader__.load({
 			return React.createElement("div", { style: panelStyle },
 				React.createElement("div", { style: toolbarStyle },
 					React.createElement("button", { style: { ...buttonStyle, alignSelf: "auto", padding: "3px 10px" }, onClick: createNote }, t("notes.new")),
+				React.createElement("button", { style: { ...buttonStyle, alignSelf: "auto", padding: "3px 10px" }, onClick: captureSelection }, t("notes.captureSelection")),
 					React.createElement("button", { style: { ...buttonStyle, alignSelf: "auto", padding: "3px 10px" }, onClick: deleteNote, disabled: !activeId }, t("notes.delete")),
 					// 2.3: manual list toggle.
 					React.createElement("button", {
@@ -417,6 +669,7 @@ window.__ModuleLoader__.load({
 		function apply(ctx) {
 			activeLocale = undefined;
 			ctx.effect(() => ctx.locale.register(NS, { zh, en }), "terminal-notes: dictionaries");
+			ctx.effect(() => installConversationCapture(), "terminal-notes: conversation capture");
 			// The panels take no props, so they share this module-scoped t. Binding
 			// it is what makes the language correct; the probe below is kept only
 			// for a context with no locale service, and it runs too early to be

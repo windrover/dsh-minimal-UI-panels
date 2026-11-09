@@ -229,4 +229,12 @@ for (const expected of EXPECTED) {
   assert.ok(hasRole(element, 'separator'), `body "${expected.id}" must render a draggable divider`)
 }
 
+// ---- conversation capture survives the merge -------------------------------
+// The feature lives in src/terminal-notes but only ships through lib/client.js;
+// these markers fail the build if a future merge drops it.
+const mergedSource = readFileSync(join(ROOT, 'lib', 'client.js'), 'utf8')
+for (const marker of ['/api/terminal-notes/note-append', 'data-chat-node-key', 'capture.add', 'NOTES_CHANGED_EVENT', 'flowItem', 'notes.captureSelection']) {
+  assert.ok(mergedSource.includes(marker), `merged bundle must carry the conversation-capture feature (${marker})`)
+}
+
 console.log(`✅ client contract OK — ${tabTypes.length} composite tab types: ${EXPECTED.map((t) => t.kind).join(', ')}`)

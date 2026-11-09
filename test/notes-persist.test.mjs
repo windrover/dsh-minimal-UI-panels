@@ -137,6 +137,25 @@ assert.equal(deleted.json.ok, true)
 const afterDelete = await invoke('/api/terminal-notes/notes')
 assert.deepEqual(afterDelete.json.notes.map((n) => n.id), ['note-adopted'])
 
+// ---- append one captured conversation excerpt (right-click menu) ------------
+const appended = await invoke('/api/terminal-notes/note-append', {
+  method: 'POST',
+  body: { text: '右键摘录\n第二行' },
+})
+assert.equal(appended.status, 200)
+assert.equal(appended.json.ok, true)
+assert.equal(appended.json.title, '右键摘录', 'append derives the title from the first line')
+assert.equal(typeof appended.json.id, 'string')
+const appendedRead = await invoke('/api/terminal-notes/note', { query: `?id=${appended.json.id}` })
+assert.equal(appendedRead.json.text, '右键摘录\n第二行')
+const appendedDoc = JSON.parse(await readFile(notesFile, 'utf8'))
+assert.equal(appendedDoc.notes.find((n) => n.id === appended.json.id).source, 'conversation')
+
+const appendEmpty = await invoke('/api/terminal-notes/note-append', { method: 'POST', body: { text: '   ' } })
+assert.equal(appendEmpty.status, 400, 'empty capture is rejected')
+const appendMethod = await invoke('/api/terminal-notes/note-append', { method: 'GET' })
+assert.equal(appendMethod.status, 405, 'append is POST-only')
+
 // ---- corrupt file degrades to an empty list ---------------------------------
 await writeFile(notesFile, 'not json', 'utf8')
 const corrupt = await invoke('/api/terminal-notes/notes')
