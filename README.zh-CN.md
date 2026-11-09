@@ -3,7 +3,7 @@
 > [English](./README.md) · [中文](./README.zh-CN.md)
 
 <p>
-  <a href="https://github.com/windrover/dsh-minimal-UI-panels"><img src="https://img.shields.io/badge/version-0.5.1-blue" alt="version"></a>
+  <a href="https://github.com/windrover/dsh-minimal-UI-panels"><img src="https://img.shields.io/badge/version-0.6.3-blue" alt="version"></a>
   <a href="https://github.com/windrover/dsh-minimal-UI-panels/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="license"></a>
   <a href="https://github.com/windrover/dsh-minimal-UI-panels"><img src="https://img.shields.io/badge/platform-DeepSeek%20Harness-9cf" alt="platform"></a>
   <img src="https://img.shields.io/badge/status-active-brightgreen" alt="status">
@@ -15,6 +15,16 @@
 `dsh-minimal-UI-panels` 把三个原本独立的 DSH 插件合并为一个包，并以**单 loader 行**挂载。面板**两两配对**注册为 `@deepseek-ai/dsh-client-ui-sidebar-right` 的**标签页类型**（`ctx.sidebarRightTabs`）：`产物 + 终端`、`记忆 + 记事本`，每个标签内部上下叠放、中间可拖动分栏——这样把两个窗格并排就能同时看到 4 个面板。同时提供宿主侧工具/路由，即插即用。
 
 > **DSH 0.1.5 起架构已变**：旧版那个可被第三方占用的 `details` 列已被 `rightbar` 取代，由官方右侧栏（docking kit + 标签类型注册表）接管。本包 0.2.0 完成该迁移——不再有自绘的多面板容器。
+
+## 🆕 更新内容
+
+- **0.6.3** — 点击便签不再自动收起列表，显隐只由工具栏按钮控制。
+- **0.6.2** — 收录兼容更多页面结构（`data-chat-node-key` → `flowItem` → 选中文字），记事本工具栏新增**收录选区**。
+- **0.6.1** — 批准待确认记忆时先归档 superseded 记录，库满不再卡住队列；面板区分「加载失败 / 操作失败」；用量只统计 live 记录。
+- **0.6.0** — 右键对话消息 → **添加到记事本**：有选区就收录选区，否则收录整条消息。
+- **0.5.3** — 长期记忆加固：autoSummarize 在 DSH 0.2.x 恢复；写入去重收口；压缩改为先归档再删除；新增 `usage.jsonl` 与 `/memory stats`；可选的每轮相关召回。
+
+发布说明：[v0.6.3](https://github.com/windrover/dsh-minimal-UI-panels/releases/tag/v0.6.3)。
 
 ## ✨ 功能一览
 

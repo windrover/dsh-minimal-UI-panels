@@ -3,7 +3,7 @@
 > [English](./README.md) · [中文](./README.zh-CN.md)
 
 <p>
-  <a href="https://github.com/windrover/dsh-minimal-UI-panels"><img src="https://img.shields.io/badge/version-0.5.1-blue" alt="version"></a>
+  <a href="https://github.com/windrover/dsh-minimal-UI-panels"><img src="https://img.shields.io/badge/version-0.6.3-blue" alt="version"></a>
   <a href="https://github.com/windrover/dsh-minimal-UI-panels/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="license"></a>
   <a href="https://github.com/windrover/dsh-minimal-UI-panels"><img src="https://img.shields.io/badge/platform-DeepSeek%20Harness-9cf" alt="platform"></a>
   <img src="https://img.shields.io/badge/status-active-brightgreen" alt="status">
@@ -15,6 +15,16 @@
 `dsh-minimal-UI-panels` merges three formerly separate DSH plugins into a single package mounted as **one loader row**. The panels are **paired** into right-Sidebar **tab types** (`ctx.sidebarRightTabs`) on `@deepseek-ai/dsh-client-ui-sidebar-right` — `Artifacts + Terminal` and `Memory + Notes` — and each tab stacks its two panels with a draggable divider, so two Sidebar panes side by side show **all four panels at once**. It also ships the host-side tools/routes — plug and play.
 
 > **DSH 0.1.5 changed the architecture**: the third-party-occupiable `details` column is gone, replaced by `rightbar` and owned by the shipped right Sidebar (docking kit + tab-type registry). 0.2.0 completed that migration; 0.3.0 then paired the panels, because one tab per panel could only ever show two of them.
+
+## 🆕 What's new
+
+- **0.6.3** — Selecting a note no longer collapses the list; the toolbar toggle owns visibility alone.
+- **0.6.2** — Capture works on more chat surfaces (`data-chat-node-key` → `flowItem` → text selection), and the Notes toolbar gains **Add selection**.
+- **0.6.1** — Approving a pending memory archives superseded records first, so a full scope can no longer wedge the queue; the panel separates load failures from action failures; usage counts live records only.
+- **0.6.0** — Right-click a conversation message → **Add to Notes**: the selection if there is one, otherwise the whole message.
+- **0.5.3** — Memory hardening: autoSummarize works again on DSH 0.2.x; write dedup is centralized; compression archives instead of deleting; `usage.jsonl` + `/memory stats`; opt-in per-prompt recall.
+
+Release notes: [v0.6.3](https://github.com/windrover/dsh-minimal-UI-panels/releases/tag/v0.6.3).
 
 ## ✨ Features
 
